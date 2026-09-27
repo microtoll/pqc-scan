@@ -1,0 +1,34 @@
+{
+  "name": "@microtoll/pqc-scan",
+  "version": "0.0.0",
+  "private": true,
+  "description": "An inventory of the cryptography a JavaScript or TypeScript codebase uses, and which of it a large quantum computer would break. An inventory and pointers, not a compliance certificate.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "pqc-scan": "./bin/pqc-scan.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "schema",
+    "action.yml",
+    "README.md",
+    "DESIGN.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/package.test.mjs"
+  },
+  "dependencies": {}
+}

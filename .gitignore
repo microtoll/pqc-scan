@@ -1,0 +1,8 @@
+node_modules/
+*.log
+# Reports a scan or a test run writes; they describe some codebase, never
+# this repository's source.
+pqc-scan.json
+pqc-scan.md
+/reports/
+*.tmp
