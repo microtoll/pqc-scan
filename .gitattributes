@@ -1,0 +1,4 @@
+# Line endings are LF in the repository and in every checkout, so fixtures
+# and reports are byte-identical on every machine. The tokenizer itself
+# accepts \n, \r\n and \r (a test proves it on in-memory text).
+* text=auto eol=lf

@@ -12,3 +12,12 @@ report); a change to its meaning always raises that version.
   no remote). Apache-2.0. Node 20 or later; no runtime dependencies.
 - `DESIGN.md`: the approved design (D-42 to D-45, each option (a)), with §8
   recording how the details it left open were settled.
+
+### Tokenizer (2026-09-27)
+- `src/tokenize.js`: JavaScript and TypeScript tokens — strings (escapes
+  applied), template literals with nested `${…}` tokenized as code, regular
+  expression literals by the previous-token rule, numbers with separators,
+  line and block comments kept apart for the priority heuristic. Resilient:
+  an unterminated string ends at its line, nothing throws.
+- `.gitattributes`: LF everywhere, so fixtures and reports are identical on
+  every machine.
