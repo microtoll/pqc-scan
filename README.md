@@ -64,30 +64,30 @@ Point it at the folder that holds your application's code (the one with its
 `package.json`). Until the package is published, call the script in the
 scanner's `bin` folder by its path.
 
+Always name a file for the report: a real application produces hundreds of
+lines, far too many to read in a terminal.
+
 On **Windows** (PowerShell or Command Prompt), with the scanner unzipped at
 `C:\Tools\pqc-scan` and your app at `C:\Code\my-app`:
 
 ```powershell
-node C:\Tools\pqc-scan\bin\pqc-scan.mjs C:\Code\my-app
+node C:\Tools\pqc-scan\bin\pqc-scan.mjs C:\Code\my-app --md pqc-scan.md
 ```
 
 On **macOS or Linux**:
 
 ```sh
-node ~/tools/pqc-scan/bin/pqc-scan.mjs ~/code/my-app
-```
-
-That prints the report to the terminal. To save it as files instead, add
-where to write them (a `.md` file you read, a `.json` file for tools):
-
-```powershell
-node C:\Tools\pqc-scan\bin\pqc-scan.mjs C:\Code\my-app --md pqc-scan.md --json pqc-scan.json
+node ~/tools/pqc-scan/bin/pqc-scan.mjs ~/code/my-app --md pqc-scan.md
 ```
 
 Open `pqc-scan.md` in any editor or Markdown viewer (Visual Studio Code
 shows it with *Ctrl+Shift+V*). Start with section 1, the summary, then
 section 3, the priorities, where each High or Medium says which line of your
-code it points at and why.
+code it points at and why. Add `--json pqc-scan.json` as well to keep the
+machine-readable version for other tools.
+
+Without `--md` or `--json` the whole report is printed to the terminal,
+which is fine for a small folder and unreadable for a large one.
 
 A scan of a medium-sized application takes a few seconds. If you are in the
 scanner's own folder, `.` means "this folder", and `--help` prints every
