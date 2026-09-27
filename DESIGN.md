@@ -284,7 +284,7 @@ decides the algorithm, are reported as dynamic. Node's one-shot
 
 ### 8.5 Libraries
 
-The catalogue (`src/catalogue.js`, 45 packages, dated) records what each
+The catalogue (`src/catalogue.js`, 49 packages, dated) records what each
 package provides and whether it offers post-quantum algorithms (`yes`,
 `no`, `partial`, or `check` where it depends on the version). For the
 common packages it also maps calls to algorithms (`nacl.box` → X25519 with
@@ -292,7 +292,8 @@ XSalsa20-Poly1305, `bcrypt.hash(pw, 12)` → bcrypt with cost 12). JSON Web
 Token (JWT) libraries are read by their algorithm literals: in a file that
 imports one, a string that is exactly a JSON Web Algorithms name (`'RS256'`,
 `'ES256'`, `'EdDSA'`, `'HS256'`, …) is a finding; `'none'` only as the value
-of an `alg` or `algorithm` field. When a file imports a catalogued package
+of an `alg` or `algorithm` field, or in an `algorithms: [...]` list (a
+verifier that accepts unsigned tokens). When a file imports a catalogued package
 and none of its uses there could be read, one dynamic finding points at the
 import. `jsonwebtoken`'s `sign` without an `algorithm` is reported as
 HS256, its documented default.
@@ -348,3 +349,38 @@ fields are written).
   the count is declared, not that it reaches a call.
 - ECB mode and unsigned JWTs (`alg: 'none'`) get a "replace now" note; both
   are wrong on classical grounds, like SHA-1.
+
+### 8.9 A JWT algorithm literal in a file that imports several JWT libraries
+
+A bare literal (`'RS256'`) cannot say which library it is passed to. When a
+file imports more than one JWT library, the finding's interface names them
+all (`library:jose or jsonwebtoken`) rather than picking one. Found on the
+fixture `test/fixtures/libraries/src/jwt.js`, where the first version
+attributed `jsonwebtoken`'s `RS256` to `jose`.
+
+### 8.10 The Markdown cannot be written into by a scanned repository
+
+Everything in the Markdown that comes from a scanned file (evidence, paths,
+algorithm names read from literals) is made inert: evidence and paths go in
+code spans whose fence is longer than any backtick run inside them, with
+`|` escaped so a table cell cannot end early; other text has the characters
+that open links, images, HTML, emphasis and code spans backslash-escaped
+(CommonMark §2.4). A hostile repository therefore cannot put a link or a
+sentence into a report that a reviewer might trust. A test proves it with a
+file named `[x](evil).js` and an evidence line full of pipes, backticks and
+HTML.
+
+### 8.11 The GitHub Action
+
+- The threshold is applied in the last step, after the job summary and the
+  upload, so a failing job still shows and keeps its report.
+- Inputs reach its scripts through environment variables, never by
+  expanding `${{ inputs.* }}` inside a script, so an input cannot run as
+  shell code (SECURITY.md).
+- GitHub accepts at most 1 MiB of job summary per step; a larger report is
+  replaced there by a pointer to the artefact.
+- It runs `node` from the runner and checks for version 20 or later; it
+  does not install Node, which would change the Node the rest of the job
+  uses.
+- `actions/upload-artifact` is pinned to a full commit SHA, as the engine
+  pins its own actions.

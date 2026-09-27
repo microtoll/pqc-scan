@@ -1,0 +1,6 @@
+server {
+    listen 443 ssl;
+    server_name ${SERVER_NAME};
+    ssl_certificate     /etc/nginx/cert/site.pem;
+    ssl_certificate_key /etc/nginx/cert/site.key;
+}

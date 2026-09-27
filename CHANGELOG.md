@@ -21,3 +21,33 @@ report); a change to its meaning always raises that version.
   an unterminated string ends at its line, nothing throws.
 - `.gitattributes`: LF everywhere, so fixtures and reports are identical on
   every machine.
+
+### The scanner, the report, the command line and the Action (2026-09-27)
+- `src/source.js`: calls, arguments, object fields, imports and constants
+  read from the token stream; a `const` followed within its block, and one
+  hop across a relative import (DESIGN.md §8.1).
+- Detectors (`src/detect/`): Web Crypto, `node:crypto`, the library
+  catalogue (49 packages, `src/catalogue.js`) with JSON Web Token algorithm
+  literals, lockfiles (`package-lock.json` v1–v3, `yarn.lock` v1 and Berry,
+  `pnpm-lock.yaml` v5–v9), named PBKDF2 iteration counts, and TLS in nginx,
+  Apache, Caddy and Node. The priority heuristic of §8.4.
+- `src/report.js`: the JSON report (schema version 1,
+  `schema/pqc-scan.schema.json`) and the Markdown report in the eight
+  sections of §4, which a scanned repository cannot write links or HTML
+  into (§8.10).
+- `bin/pqc-scan.mjs`: `pqc-scan [dir] [--json] [--md] [--fail-on high|medium]
+  [--exclude]…`; exit codes 0, 1 and 2.
+- `action.yml`: the composite GitHub Action (§8.11); `.github/workflows/ci.yml`
+  tests on Node 20 and 24, on Linux and Windows, and runs the action on the
+  fixtures.
+- A JSON Web Algorithms literal in a file that imports several JWT
+  libraries names them all instead of the first (§8.9).
+- Tests: every detector on fixtures of real code shapes and traps; every
+  fixture report checked against the published schema; the same report on
+  every machine; the command line's outputs and exit codes. 47 tests, on
+  Node 20 and 24.
+- Acceptance (DESIGN.md §6, first item): run on the Microtoll Engine, it
+  finds AES-256-GCM, HKDF-SHA-256, PBKDF2 at 310,000 iterations, SHA-256,
+  Ed25519 (Medium), the P-256 ECDH seal (High), the hybrid
+  `MLKEM768-X25519` (post-quantum), the server's `node:crypto` verify and
+  hash, and the nginx sample as hybrid-enabled.

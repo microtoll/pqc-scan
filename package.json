@@ -28,7 +28,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test test/package.test.mjs test/tokenize.test.mjs"
+    "test": "node --test test/package.test.mjs test/tokenize.test.mjs test/detect.test.mjs test/report.test.mjs test/cli.test.mjs"
   },
   "dependencies": {}
 }

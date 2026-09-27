@@ -1,0 +1,137 @@
+# The pqc-scan GitHub Action (DESIGN.md §5): a composite action that runs the
+# command line from this action's own checkout, on the workspace; appends the
+# Markdown report to the job summary; uploads the JSON report as an artefact;
+# and, when asked, fails the job at a priority threshold.
+#
+# It sends nothing anywhere beyond the artefact GitHub itself stores. Inputs
+# reach the scripts through environment variables, never by expanding
+# ${{ inputs.* }} inside a script, so an input cannot inject shell commands.
+name: pqc-scan
+description: An inventory of the cryptography a JavaScript or TypeScript codebase uses, and which of it a large quantum computer would break. An inventory and pointers, not a compliance certificate.
+author: Microtoll
+
+inputs:
+  path:
+    description: The directory to scan, relative to the workspace.
+    required: false
+    default: '.'
+  fail-on:
+    description: 'Fail the job if anything is at this priority or above: "high", or "medium" (High and Medium). Empty never fails.'
+    required: false
+    default: ''
+  exclude:
+    description: Directory or file names, or paths from the scanned directory, to skip; one per line. node_modules and .git are never read.
+    required: false
+    default: ''
+  json:
+    description: Where to write the JSON report.
+    required: false
+    default: pqc-scan.json
+  md:
+    description: Where to write the Markdown report.
+    required: false
+    default: pqc-scan.md
+  job-summary:
+    description: Append the Markdown report to the job summary ("true" or "false").
+    required: false
+    default: 'true'
+  upload:
+    description: Upload the JSON and Markdown reports as an artefact ("true" or "false").
+    required: false
+    default: 'true'
+  artifact-name:
+    description: The artefact's name.
+    required: false
+    default: pqc-scan
+
+outputs:
+  high:
+    description: The number of High entries.
+    value: ${{ steps.scan.outputs.high }}
+  medium:
+    description: The number of Medium entries.
+    value: ${{ steps.scan.outputs.medium }}
+  low:
+    description: The number of Low entries.
+    value: ${{ steps.scan.outputs.low }}
+  verdict:
+    description: The one-line verdict.
+    value: ${{ steps.scan.outputs.verdict }}
+  json:
+    description: The path of the JSON report.
+    value: ${{ inputs.json }}
+
+runs:
+  using: composite
+  steps:
+    - id: scan
+      shell: bash
+      env:
+        PQC_PATH: ${{ inputs.path }}
+        PQC_FAIL_ON: ${{ inputs.fail-on }}
+        PQC_EXCLUDE: ${{ inputs.exclude }}
+        PQC_JSON: ${{ inputs.json }}
+        PQC_MD: ${{ inputs.md }}
+      run: |
+        if ! node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 20 ? 0 : 1)'; then
+          echo "::error::pqc-scan needs Node 20 or later on the runner (see actions/setup-node)."
+          exit 2
+        fi
+        args=("$PQC_PATH" --json "$PQC_JSON" --md "$PQC_MD")
+        while IFS= read -r name; do
+          [ -n "$name" ] && args+=(--exclude "$name")
+        done <<< "$PQC_EXCLUDE"
+        if [ -n "$PQC_FAIL_ON" ]; then args+=(--fail-on "$PQC_FAIL_ON"); fi
+        # The threshold is applied in the last step, after the summary and
+        # the upload, so a failing job still shows and keeps its report.
+        set +e
+        node "$GITHUB_ACTION_PATH/bin/pqc-scan.mjs" "${args[@]}"
+        code=$?
+        set -e
+        if [ "$code" -eq 2 ]; then exit 2; fi
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        node -e '
+          const r = JSON.parse(require("node:fs").readFileSync(process.env.PQC_JSON, "utf8"));
+          const out = [
+            `high=${r.summary.byPriority.high}`,
+            `medium=${r.summary.byPriority.medium}`,
+            `low=${r.summary.byPriority.low}`,
+            `verdict=${r.summary.verdict.replace(/[\r\n]/g, " ")}`,
+          ];
+          require("node:fs").appendFileSync(process.env.GITHUB_OUTPUT, out.join("\n") + "\n");
+        '
+
+    - if: ${{ inputs.job-summary == 'true' }}
+      shell: bash
+      env:
+        PQC_MD: ${{ inputs.md }}
+        PQC_ARTIFACT: ${{ inputs.artifact-name }}
+      run: |
+        # GitHub accepts at most 1 MiB of job summary per step.
+        if [ "$(wc -c < "$PQC_MD")" -le 1000000 ]; then
+          cat "$PQC_MD" >> "$GITHUB_STEP_SUMMARY"
+        else
+          {
+            echo "# Post-quantum cryptography inventory"
+            echo
+            echo "The report is larger than the job summary allows; it is in the \`$PQC_ARTIFACT\` artefact."
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - if: ${{ inputs.upload == 'true' }}
+      # Pinned to a full commit SHA, never a moving tag.
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: |
+          ${{ inputs.json }}
+          ${{ inputs.md }}
+        if-no-files-found: error
+
+    - if: ${{ steps.scan.outputs.exit-code == '1' }}
+      shell: bash
+      env:
+        PQC_FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        echo "::error::pqc-scan: entries at priority $PQC_FAIL_ON or above; see the job summary."
+        exit 1

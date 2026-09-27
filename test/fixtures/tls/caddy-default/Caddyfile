@@ -1,0 +1,4 @@
+# Automatic HTTPS with Caddy's defaults.
+app.example {
+	reverse_proxy localhost:8080
+}

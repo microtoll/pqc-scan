@@ -1,0 +1,26 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+
+importers:
+
+  .:
+    dependencies:
+      '@noble/post-quantum':
+        specifier: ^0.5.0
+        version: 0.5.1
+
+packages:
+
+  '@noble/post-quantum@0.5.1':
+    resolution: {integrity: sha512-AAAA}
+
+  bcryptjs@2.4.3:
+    resolution: {integrity: sha512-BBBB}
+
+snapshots:
+
+  '@noble/post-quantum@0.5.1': {}
+
+  bcryptjs@2.4.3: {}

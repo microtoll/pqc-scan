@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # Node 20 because the tool runs in other people's CI (DESIGN.md §2);
+    # Windows because paths in the report must come out the same there.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: ['20', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Actions are pinned to a full commit SHA, never a moving tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+
+  action:
+    # The composite action, run on this repository's own fixtures.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+      - id: clean
+        uses: ./
+        with:
+          path: test/fixtures/cli/clean
+          fail-on: medium
+          json: clean.json
+          md: clean.md
+          upload: 'false'
+      - id: fixtures
+        uses: ./
+        continue-on-error: true
+        with:
+          path: test/fixtures/cli
+          fail-on: high
+          exclude: |
+            clean
+          artifact-name: pqc-scan-fixtures
+      - name: The clean scan passed; the fixtures scan failed on its two Highs and still uploaded
+        env:
+          CLEAN: ${{ steps.clean.outcome }}
+          CLEAN_HIGH: ${{ steps.clean.outputs.high }}
+          FIXTURES: ${{ steps.fixtures.outcome }}
+          HIGH: ${{ steps.fixtures.outputs.high }}
+          MEDIUM: ${{ steps.fixtures.outputs.medium }}
+        run: |
+          test "$CLEAN" = success
+          test "$CLEAN_HIGH" = 0
+          test "$FIXTURES" = failure
+          test "$HIGH" = 2
+          test "$MEDIUM" = 1
+          test -s pqc-scan.json

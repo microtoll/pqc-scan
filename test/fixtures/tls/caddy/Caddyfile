@@ -1,0 +1,7 @@
+app.example {
+	tls {
+		protocols tls1.2 tls1.3
+		curves x25519 secp256r1
+	}
+	reverse_proxy localhost:8080
+}

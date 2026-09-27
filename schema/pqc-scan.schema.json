@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:microtoll:pqc-scan:report:1",
+  "title": "pqc-scan report, schema version 1",
+  "description": "The machine-readable inventory pqc-scan writes (DESIGN.md §4). An inventory and pointers, not a compliance certificate. Its meaning only changes with a new schema version. Every path is relative to the scanned directory, with forward slashes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "notice", "tool", "scannedAt", "root", "summary", "findings", "dependencies", "tls", "skipped"],
+  "properties": {
+    "schema": { "const": 1 },
+    "notice": { "const": "An inventory and pointers, not a compliance certificate." },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "catalogue"],
+      "properties": {
+        "name": { "const": "pqc-scan" },
+        "version": { "type": "string" },
+        "catalogue": { "type": "string", "description": "The month the library catalogue was last reviewed, YYYY-MM." }
+      }
+    },
+    "scannedAt": { "type": "string", "description": "ISO 8601 time of the scan: the only field that differs between two scans of the same tree." },
+    "root": { "type": "string", "description": "The scanned directory's name only, never its full path." },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filesScanned", "filesWithFindings", "findings", "findingsInTests", "byClass", "byPriority", "quantumVulnerable", "dynamic", "libraries", "tls", "verdict"],
+      "properties": {
+        "filesScanned": { "type": "integer", "minimum": 0 },
+        "filesWithFindings": { "type": "integer", "minimum": 0 },
+        "findings": { "type": "integer", "minimum": 0 },
+        "findingsInTests": { "type": "integer", "minimum": 0 },
+        "byClass": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["public-key", "post-quantum", "symmetric", "hash", "kdf", "random", "unknown"],
+          "properties": {
+            "public-key": { "type": "integer", "minimum": 0 },
+            "post-quantum": { "type": "integer", "minimum": 0 },
+            "symmetric": { "type": "integer", "minimum": 0 },
+            "hash": { "type": "integer", "minimum": 0 },
+            "kdf": { "type": "integer", "minimum": 0 },
+            "random": { "type": "integer", "minimum": 0 },
+            "unknown": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "byPriority": {
+          "type": "object",
+          "description": "Findings and TLS configurations at each priority.",
+          "additionalProperties": false,
+          "required": ["high", "medium", "low"],
+          "properties": {
+            "high": { "type": "integer", "minimum": 0 },
+            "medium": { "type": "integer", "minimum": 0 },
+            "low": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "quantumVulnerable": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["uses", "files"],
+          "properties": {
+            "uses": { "type": "integer", "minimum": 0 },
+            "files": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "dynamic": { "type": "integer", "minimum": 0 },
+        "libraries": { "type": "integer", "minimum": 0 },
+        "tls": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["configurations", "keyExchange"],
+          "properties": {
+            "configurations": { "type": "integer", "minimum": 0 },
+            "keyExchange": { "enum": ["hybrid", "classical-only", "mixed", "unstated", "none"] }
+          }
+        },
+        "verdict": { "type": "string" }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "description": "Sorted by file, line, column, algorithm, operation and interface.",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "dependencies": {
+      "type": "array",
+      "description": "Catalogued packages seen in a manifest, a lockfile or an import, sorted by name.",
+      "items": { "$ref": "#/$defs/dependency" }
+    },
+    "tls": {
+      "type": "array",
+      "description": "TLS configurations, sorted by file and line.",
+      "items": { "$ref": "#/$defs/tls" }
+    },
+    "skipped": {
+      "type": "array",
+      "description": "What was not read, and why; sorted by path.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "reason"],
+        "properties": {
+          "path": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "text"],
+      "properties": {
+        "code": { "type": "string", "description": "Stable; part of the schema. The text may be reworded." },
+        "text": { "type": "string" }
+      }
+    },
+    "priority": { "enum": ["high", "medium", "low", null] },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "family", "class", "kind", "quantumVulnerable", "keySize", "curve", "hash", "parameters", "interface", "operation", "file", "line", "column", "evidence", "dynamic", "priority", "priorityReason", "replacement", "notes", "inTest"],
+      "properties": {
+        "algorithm": { "type": "string", "description": "The algorithm as normalised, with its size or curve where literal (\"ECDH P-256\", \"AES-256-GCM\")." },
+        "family": { "type": "string" },
+        "class": { "enum": ["public-key", "post-quantum", "symmetric", "hash", "kdf", "random", "unknown"] },
+        "kind": { "enum": ["key-agreement", "public-key-encryption", "signature", "public-key", "kem", "pq-signature", "cipher", "mac", "hash", "kdf", "password-hash", "random", "unknown"] },
+        "quantumVulnerable": { "type": "boolean", "description": "True exactly when class is public-key." },
+        "keySize": { "type": ["integer", "null"] },
+        "curve": { "type": ["string", "null"] },
+        "hash": { "type": ["string", "null"] },
+        "parameters": {
+          "type": "object",
+          "description": "Literal parameters read at the call, such as iterations or cost.",
+          "additionalProperties": { "type": ["number", "string"] }
+        },
+        "interface": { "type": "string", "pattern": "^(web-crypto|node:crypto|constant|library:.+)$", "description": "web-crypto, node:crypto, constant (a named parameter, DESIGN.md §8.8), or library:<package>. A JSON Web Algorithms literal in a file that imports several JWT libraries names them all: library:<a> or <b>." },
+        "operation": { "type": "string" },
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 1 },
+        "evidence": { "type": "string", "maxLength": 200, "description": "The source line, trimmed, as written." },
+        "dynamic": { "type": "boolean", "description": "The algorithm could not be read statically: check by hand." },
+        "priority": { "$ref": "#/$defs/priority" },
+        "priorityReason": { "type": ["string", "null"] },
+        "replacement": { "type": ["string", "null"] },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/note" } },
+        "inTest": { "type": "boolean" }
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "versions", "direct", "dev", "declaredIn", "lockfiles", "provides", "postQuantum", "importedAt"],
+      "properties": {
+        "name": { "type": "string" },
+        "versions": { "type": "array", "items": { "type": "string" }, "description": "From the lockfile; a declared range is marked \"(declared)\"." },
+        "direct": { "type": "boolean", "description": "Declared in a scanned package.json." },
+        "dev": { "type": ["boolean", "null"], "description": "Only a development dependency; null where the lockfile does not say." },
+        "declaredIn": { "type": "array", "items": { "type": "string" } },
+        "lockfiles": { "type": "array", "items": { "type": "string" } },
+        "provides": { "type": "string" },
+        "postQuantum": { "enum": ["yes", "partial", "no", "check", "n/a"] },
+        "importedAt": { "type": "array", "items": { "type": "string" }, "description": "file:line of each import." }
+      }
+    },
+    "tls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "line", "server", "setting", "protocols", "ciphers", "groups", "hybridGroups", "keyExchange", "notes", "evidence", "inTest", "priority", "priorityReason", "replacement"],
+      "properties": {
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "server": { "enum": ["nginx", "apache", "caddy", "node"] },
+        "setting": { "type": ["string", "null"], "description": "For Node, the call (\"https.createServer\")." },
+        "protocols": { "type": ["array", "null"], "items": { "type": "string" } },
+        "ciphers": { "type": ["string", "null"] },
+        "groups": { "type": ["array", "null"], "items": { "type": "string" } },
+        "hybridGroups": { "type": "array", "items": { "type": "string" } },
+        "keyExchange": { "enum": ["hybrid", "classical-only", "mixed", "unstated", "dynamic"] },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/note" } },
+        "evidence": { "type": "string" },
+        "inTest": { "type": "boolean" },
+        "priority": { "enum": ["low", null] },
+        "priorityReason": { "type": ["string", "null"] },
+        "replacement": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
