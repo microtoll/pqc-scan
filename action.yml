@@ -23,6 +23,10 @@ inputs:
     description: Directory or file names, or paths from the scanned directory, to skip; one per line. node_modules and .git are never read.
     required: false
     default: ''
+  test-files:
+    description: Texts; a file whose path contains one is treated as test code, besides the usual test names. One per line.
+    required: false
+    default: ''
   json:
     description: Where to write the JSON report.
     required: false
@@ -70,6 +74,7 @@ runs:
         PQC_PATH: ${{ inputs.path }}
         PQC_FAIL_ON: ${{ inputs.fail-on }}
         PQC_EXCLUDE: ${{ inputs.exclude }}
+        PQC_TEST_FILES: ${{ inputs.test-files }}
         PQC_JSON: ${{ inputs.json }}
         PQC_MD: ${{ inputs.md }}
       run: |
@@ -81,6 +86,9 @@ runs:
         while IFS= read -r name; do
           [ -n "$name" ] && args+=(--exclude "$name")
         done <<< "$PQC_EXCLUDE"
+        while IFS= read -r text; do
+          [ -n "$text" ] && args+=(--test-files "$text")
+        done <<< "$PQC_TEST_FILES"
         if [ -n "$PQC_FAIL_ON" ]; then args+=(--fail-on "$PQC_FAIL_ON"); fi
         # The threshold is applied in the last step, after the summary and
         # the upload, so a failing job still shows and keeps its report.

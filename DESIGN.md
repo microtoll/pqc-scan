@@ -335,7 +335,7 @@ fields are written).
   walked in byte order of their names. Only `scannedAt` differs between two
   scans of the same tree.
 - Test code (a `test`, `tests`, `__tests__`, `spec`, `specs` or `test-d`
-  directory, or a
+  directory, a path containing a text given with `--test-files`, or a
   `.test.`/`.spec.` file name) is scanned and marked `inTest`, not hidden:
   a composition in test tooling is part of the inventory.
 - Evidence is the source line, trimmed and cut at 200 characters. It is
@@ -349,8 +349,9 @@ fields are written).
   `skipped[]`.
 - Exit codes: 0 done, 1 the `--fail-on` threshold was met, 2 a usage or
   read error.
-- With neither `--json` nor `--md`, the Markdown goes to standard output
-  and nothing is written to disk.
+- With neither `--json` nor `--md`, and standard output a pipe, the Markdown
+  goes to standard output and nothing is written to disk. At a terminal the
+  reports go to the current folder instead (§8.13).
 
 ### 8.8 Additions within the design
 

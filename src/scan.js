@@ -28,8 +28,10 @@ const RESOLVE_EXTENSIONS = ['', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.
 /**
  * Scans a directory.
  * @param {string} dir
- * @param {{ exclude?: string[], now?: Date }} [options]
+ * @param {{ exclude?: string[], testFiles?: string[], now?: Date }} [options]
  *   exclude: directory or file names, or paths relative to `dir`, to skip.
+ *   testFiles: texts; a file whose path contains one is test code, besides
+ *     the usual names (DESIGN.md §8.7, §8.13).
  *   now: the time written as scannedAt (a test fixes it; nothing else does).
  * @returns {object} the report, schema version 1
  */
@@ -37,6 +39,8 @@ export function scan(dir, options = {}) {
   const root = resolve(dir);
   if (!statSync(root).isDirectory()) throw new Error(`not a directory: ${dir}`);
   const exclude = (options.exclude ?? []).map(normaliseExclude).filter(Boolean);
+  const testFiles = (options.testFiles ?? []).map(String).filter(Boolean);
+  const inTest = (rel) => isTestPath(rel, testFiles);
   const files = [];
   const skipped = [];
   walk(root, '', files, skipped, exclude);
@@ -77,7 +81,7 @@ export function scan(dir, options = {}) {
   for (const [rel, { kind, text }] of texts) {
     filesScanned++;
     if (kind === 'js') {
-      const src = new SourceFile(rel, text, { importedConstant });
+      const src = new SourceFile(rel, text, { importedConstant, inTest: inTest(rel) });
       findings.push(...detectWebCrypto(src), ...detectNodeCrypto(src), ...detectParameters(src));
       const libs = detectLibraries(src);
       findings.push(...libs.findings);
@@ -88,7 +92,7 @@ export function scan(dir, options = {}) {
     } else if (kind === 'lockfile') {
       try { locks.push({ file: rel, records: readLockfile(basename(rel), text) }); } catch { skipped.push({ path: rel, reason: 'lockfile could not be read' }); }
     } else if (kind === 'tls') {
-      tls.push(...readTlsConfigFile(rel, text, isTestPath(rel)));
+      tls.push(...readTlsConfigFile(rel, text, inTest(rel)));
     }
   }
 
@@ -200,10 +204,12 @@ function isExcluded(relPath, name, exclude) {
   return exclude.some((x) => x === name || x === relPath || relPath.startsWith(`${x}/`));
 }
 
-function isTestPath(rel) {
+/** The standard rule (§8.7), plus any texts the caller named (§8.13). */
+function isTestPath(rel, testFiles = []) {
   const parts = rel.split('/');
   return parts.slice(0, -1).some((p) => TEST_DIRS.has(p))
-    || /\.(test|spec)\./.test(parts[parts.length - 1]);
+    || /\.(test|spec)\./.test(parts[parts.length - 1])
+    || testFiles.some((t) => rel.includes(t));
 }
 
 /** './primitives.js' from 'src/seal.js' → 'src/primitives.js', if scanned. */

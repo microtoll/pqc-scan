@@ -43,7 +43,9 @@ test('--json and --md write both reports; the JSON matches the schema; standard 
     assert.equal(r.code, 0);
     const report = JSON.parse(readFileSync(json, 'utf8'));
     assert.deepEqual(check(SCHEMA, report), []);
-    assert.equal(r.out, `pqc-scan: ${report.summary.verdict}.\n`);
+    // The four-line summary (§8.13): the verdict, the counts, and where the two files are.
+    assert.equal(r.out.split('\n')[0], `pqc-scan: ${report.summary.verdict}.`);
+    assert.ok(r.out.includes(`  Report: ${md}`) && r.out.includes(`  JSON:   ${json}`));
     assert.match(readFileSync(md, 'utf8'), /^# Post-quantum cryptography inventory: cli\n/);
     // Either alone writes only that one.
     const onlyJson = join(dir, 'only.json');
@@ -70,6 +72,35 @@ test('--fail-on: high fails on a High only; medium fails on a High or a Medium; 
   });
 });
 
+test('--write (what a terminal gets by default) puts pqc-scan.md and pqc-scan.json in the current folder and prints a summary (§8.13)', () => {
+  inTemp((cwd) => {
+    const r = run([join(FIXTURES, 'cli'), '--write'], cwd);
+    assert.equal(r.code, 0);
+    assert.deepEqual(readdirSync(cwd).sort(), ['pqc-scan.json', 'pqc-scan.md']);
+    const report = JSON.parse(readFileSync(join(cwd, 'pqc-scan.json'), 'utf8'));
+    const lines = r.out.trimEnd().split('\n');
+    assert.equal(lines.length, 4);
+    assert.equal(lines[0], `pqc-scan: ${report.summary.verdict}.`);
+    assert.match(lines[1], /^  \d+ files read; 2 High, 1 Medium, 0 Low; 0 to check by hand\.$/);
+    assert.equal(lines[2], `  Report: ${join(cwd, 'pqc-scan.md')}  (open it; read sections 1 and 3 first)`);
+    assert.equal(lines[3], `  JSON:   ${join(cwd, 'pqc-scan.json')}`);
+    assert.equal(r.err, '');
+    // Piped with nothing named (as these tests run it), the Markdown still goes to standard output and nothing is written.
+  });
+});
+
+test('--test-files marks files whose path contains the text as test code (§8.13)', () => {
+  inTemp((cwd) => {
+    const plain = JSON.parse(run([join(FIXTURES, 'cli'), '--json', join(cwd, 'a.json')]).out ? readFileSync(join(cwd, 'a.json'), 'utf8') : readFileSync(join(cwd, 'a.json'), 'utf8'));
+    assert.equal(plain.summary.findingsInTests, 0);
+    assert.equal(run([join(FIXTURES, 'cli'), '--json', join(cwd, 'b.json'), '--test-files', 'seal.js', '--test-files', 'util'], cwd).code, 0);
+    const marked = JSON.parse(readFileSync(join(cwd, 'b.json'), 'utf8'));
+    assert.equal(marked.summary.findingsInTests, marked.findings.filter((f) => f.file.includes('seal.js') || f.file.includes('util')).length);
+    assert.ok(marked.summary.findingsInTests > 0);
+    assert.ok(marked.findings.every((f) => f.inTest === (f.file.includes('seal.js') || f.file.includes('util'))));
+  });
+});
+
 test('--exclude leaves a directory out', () => {
   const r = run([join(FIXTURES, 'cli'), '--exclude', 'high', '--fail-on', 'high']);
   assert.equal(r.code, 0);
@@ -81,10 +112,11 @@ test('usage and read errors exit 2 and say why on standard error', () => {
   const cases = [
     [['--fail-on', 'low'], /--fail-on takes high or medium, not "low"/],
     [['--frobnicate'], /Unknown option '--frobnicate'/],
-    [['a', 'b'], /give one directory to scan/],
+    [['a', 'b'], /give one folder to scan/],
+    [['--test-files', ''], /--test-files needs some text/],
     [['--json'], /--json/],
     [['--md', ''], /--md needs a file name/],
-    [[join(FIXTURES, 'does-not-exist')], /cannot scan .*: no such directory/],
+    [[join(FIXTURES, 'does-not-exist')], /cannot scan .*: no such folder/],
     [[join(FIXTURES, 'cli', 'clean', 'util.js')], /cannot scan .*: not a directory/],
   ];
   for (const [args, message] of cases) {
@@ -110,5 +142,5 @@ test('--help and --version', () => {
 
 test('the command line uses only the public API', () => {
   const imports = [...readFileSync(BIN, 'utf8').matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]);
-  assert.deepEqual(imports, ['node:fs', 'node:util', '../src/index.js']);
+  assert.deepEqual(imports, ['node:fs', 'node:path', 'node:util', '../src/index.js']);
 });

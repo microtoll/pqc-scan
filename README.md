@@ -61,33 +61,42 @@ npm install -g @microtoll/pqc-scan
 ## Run it
 
 Point it at the folder that holds your application's code (the one with its
-`package.json`). Until the package is published, call the script in the
-scanner's `bin` folder by its path.
-
-Always name a file for the report: a real application produces hundreds of
-lines, far too many to read in a terminal.
+`package.json`).
 
 On **Windows** (PowerShell or Command Prompt), with the scanner unzipped at
 `C:\Tools\pqc-scan` and your app at `C:\Code\my-app`:
 
 ```powershell
-node C:\Tools\pqc-scan\bin\pqc-scan.mjs C:\Code\my-app --md pqc-scan.md
+C:\Tools\pqc-scan\pqc-scan C:\Code\my-app
 ```
 
 On **macOS or Linux**:
 
 ```sh
-node ~/tools/pqc-scan/bin/pqc-scan.mjs ~/code/my-app --md pqc-scan.md
+node ~/tools/pqc-scan/bin/pqc-scan.mjs ~/code/my-app
+```
+
+It prints a short summary and writes two files into the folder you are
+standing in: `pqc-scan.md`, the report to read, and `pqc-scan.json`, the
+same for other tools. The summary tells you both paths:
+
+```
+pqc-scan: 6 quantum-vulnerable public-key uses in 5 files; 12 libraries; TLS groups not written down.
+  272 files read; 1 High, 5 Medium, 0 Low; 2 to check by hand.
+  Report: C:\Users\you\pqc-scan.md  (open it; read sections 1 and 3 first)
+  JSON:   C:\Users\you\pqc-scan.json
 ```
 
 Open `pqc-scan.md` in any editor or Markdown viewer (Visual Studio Code
 shows it with *Ctrl+Shift+V*). Start with section 1, the summary, then
 section 3, the priorities, where each High or Medium says which line of your
-code it points at and why. Add `--json pqc-scan.json` as well to keep the
-machine-readable version for other tools.
+code it points at and why.
 
-Without `--md` or `--json` the whole report is printed to the terminal,
-which is fine for a small folder and unreadable for a large one.
+To put the reports somewhere else, name the files: `--md C:\Reports\app.md`
+and, if you want it, `--json C:\Reports\app.json`. If your tests are not in
+folders called `test`, `tests`, `spec` or `__tests__`, tell the scanner what
+their names contain, so the report can say how much of what it found is test
+code: `--test-files self-check`, repeatable.
 
 A scan of a medium-sized application takes a few seconds. If you are in the
 scanner's own folder, `.` means "this folder", and `--help` prints every
@@ -115,15 +124,18 @@ The full set of options:
 
 | Option | Meaning |
 | --- | --- |
-| `dir` | The directory to scan (default: the current one). |
-| `--json <file>` | Write the machine-readable report (schema version 1). |
-| `--md <file>` | Write the human report. |
+| `dir` | The folder to scan (default: the current one). |
+| `--write` | Write `pqc-scan.md` and `pqc-scan.json` into the current folder: what a run from a terminal does by default. |
+| `--md <file>` | Write the human report to this file instead. |
+| `--json <file>` | Write the machine-readable report (schema version 1) to this file. |
+| `--test-files <text>` | Treat a file whose path contains this text as test code. Repeatable. |
 | `--fail-on high` | Exit 1 if anything is High. |
 | `--fail-on medium` | Exit 1 if anything is High or Medium. |
 | `--exclude <name>` | Skip a directory or file name, or a path from `dir`. Repeatable. `node_modules` and `.git` are never read. |
 
-With neither `--json` nor `--md`, the Markdown goes to standard output and
-nothing is written to disk. Exit codes: **0** done, **1** the `--fail-on`
+In a script or a pipe, with neither `--json` nor `--md`, the Markdown goes to
+standard output and nothing is written to disk; at a terminal the two files
+are written instead. Exit codes: **0** done, **1** the `--fail-on`
 threshold was met, **2** a usage or read error. The threshold counts
 everything in the report, test code included; use `--exclude` to leave a
 directory out.

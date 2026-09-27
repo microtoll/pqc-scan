@@ -7,6 +7,23 @@ report); a change to its meaning always raises that version.
 
 ## Unreleased
 
+### For a first run from a terminal (2026-09-27)
+From the founder's first run on a Windows PC, where the whole report scrolled
+past in a Command Prompt (DESIGN.md §8.13).
+- Run from a terminal with no output named, the command line now writes
+  `pqc-scan.md` and `pqc-scan.json` into the current folder and prints a
+  four-line summary that says where they are and what to read first.
+  `--write` asks for the same from a script. Piped with nothing named, the
+  Markdown still goes to standard output and nothing is written, so existing
+  scripts are unchanged.
+- `--test-files <text>` (repeatable; the Action input `test-files`, one per
+  line): a file whose path contains the text is test code, for projects whose
+  tests are not named `test`, `spec` or `__tests__`.
+- `pqc-scan.cmd` at the repository root, so on Windows
+  `C:\Tools\pqc-scan\pqc-scan C:\Code\my-app` works without typing `node`
+  or the `bin` path.
+- The messages say "folder" rather than "directory".
+
 ### From the false-positive review of three public repositories (2026-09-27)
 `panva/jose`, `excalidraw/excalidraw` and `requarks/wiki`, each a shallow
 clone read once. Every reported finding was a genuine use; the seven faults

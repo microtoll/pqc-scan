@@ -58,7 +58,9 @@ export class SourceFile {
     this.lines = splitLines(text);
     const segments = path.split('/');
     const base = segments[segments.length - 1];
-    this.inTest = segments.slice(0, -1).some((s) => TEST_DIRS.has(s)) || /\.(test|spec)\.[cm]?[jt]sx?$/.test(base);
+    // The scan passes its own answer when the caller named extra test-file
+    // texts (§8.13); alone, a SourceFile applies the standard rule.
+    this.inTest = env.inTest ?? (segments.slice(0, -1).some((s) => TEST_DIRS.has(s)) || /\.(test|spec)\.[cm]?[jt]sx?$/.test(base));
     this.baseWords = splitWords(base.replace(/\.[^.]*$/, ''));
     this.match = matchBrackets(tokens);
     this._declarations = null;
