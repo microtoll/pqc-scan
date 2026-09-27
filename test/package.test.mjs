@@ -9,8 +9,9 @@ import { dirname, join } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 
-test('the publish gate is closed: the package is private', () => {
-  assert.equal(pkg.private, true);
+test('the publish gate is open (engine DECISIONS.md, 2026-09-27): the package is publishable under its scope', () => {
+  assert.equal(pkg.private, undefined);
+  assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
   assert.equal(pkg.name, '@microtoll/pqc-scan');
   assert.equal(pkg.license, 'Apache-2.0');
 });

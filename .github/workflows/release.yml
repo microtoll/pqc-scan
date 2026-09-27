@@ -1,0 +1,32 @@
+# The release: on a v* tag, the tests, then npm publish with provenance
+# through GitHub's OIDC (no long-lived token in the repository). Two things
+# must be true for it to succeed: the tag matches package.json's version,
+# and the npm organisation trusts this workflow for provenance (trusted
+# publishing, set up once on npmjs.com for @microtoll/pqc-scan).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write   # npm provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - name: The tag matches package.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          v=$(node -p "require('./package.json').version")
+          [ "$v" = "$tag" ] || { echo "package.json is $v, the tag is $tag"; exit 1; }
+          node -e "if (require('./package.json').private) { console.error('package.json is still private'); process.exit(1); }"
+      - run: npm test
+      - run: npm publish --provenance --access public

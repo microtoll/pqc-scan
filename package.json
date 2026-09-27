@@ -1,7 +1,6 @@
 {
   "name": "@microtoll/pqc-scan",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "An inventory of the cryptography a JavaScript or TypeScript codebase uses, and which of it a large quantum computer would break. An inventory and pointers, not a compliance certificate.",
   "license": "Apache-2.0",
   "type": "module",

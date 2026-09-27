@@ -5,7 +5,11 @@ library API may change in any minor release, and every such change is
 listed. The report's JSON schema is versioned separately (`schema` in the
 report); a change to its meaning always raises that version.
 
-## Unreleased
+## 0.1.0 — 2026-09-27
+
+The first release: the publish gate opened on 2026-09-27 (the engine's
+`DECISIONS.md`, D-01) and M6 was accepted the same day. Everything below
+is in it.
 
 ### For a first run from a terminal (2026-09-27)
 From the founder's first run on a Windows PC, where the whole report scrolled

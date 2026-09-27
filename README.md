@@ -31,9 +31,17 @@ JSON file; nothing of it is built.
    20, install the current "LTS" release from <https://nodejs.org>. On
    Windows the installer is a normal `.msi`; accept the defaults, then open a
    **new** terminal window so it picks up the change.
-2. **The scanner's code.** It is not yet on the npm registry (the publish
-   gate is closed), so for now you take it from this repository in one of
-   two ways:
+2. **The scanner.** The quickest way needs nothing more than Node.js: run
+   it straight from the npm registry, downloading nothing by hand:
+   ```sh
+   npx @microtoll/pqc-scan path/to/your/app
+   ```
+   or install it once and call it as `pqc-scan` from anywhere:
+   ```sh
+   npm install -g @microtoll/pqc-scan
+   ```
+   If the package is not on the registry yet, or you would rather read the
+   code first, take it from this repository in one of two ways:
    - **Download**: on the repository page, *Code → Download ZIP*, then unzip
      it somewhere convenient, for example `C:\Tools\pqc-scan` on Windows or
      `~/tools/pqc-scan` elsewhere.
@@ -43,20 +51,8 @@ JSON file; nothing of it is built.
      ```
 
 There is nothing else to install: the scanner has no dependencies, so there
-is no `npm install` step, and it needs no configuration, no account and no
-network connection.
-
-Once it is published, this becomes one line with no download at all:
-
-```sh
-npx @microtoll/pqc-scan path/to/your/app
-```
-
-or, to install it once and then call it as `pqc-scan` from anywhere:
-
-```sh
-npm install -g @microtoll/pqc-scan
-```
+is no `npm install` step inside it, and it needs no configuration, no
+account and no network connection to run.
 
 ## Run it
 
