@@ -232,6 +232,18 @@ becomes a fixture under `test/fixtures/` and a line in a test. The design
 and every settled detail are in [`DESIGN.md`](DESIGN.md); security reports
 go by [`SECURITY.md`](SECURITY.md).
 
+## How it was built, and support
+
+The scanner was written with Claude Code (Anthropic's coding agent) working
+from a design written and decided by the founder, who read and accepted
+every change. The checks are what you can read here: the design, the
+fixtures of real code shapes, the tests, and the hand reviews of real
+repositories recorded in `DESIGN.md` §8. Every false positive those reviews
+found became a test.
+
+The command line is free and stays free. If it saves you time, you can
+[sponsor the work on GitHub](https://github.com/sponsors/peterqbristol-ai).
+
 ## Licence
 
 Apache-2.0. See [`LICENSE`](LICENSE).
