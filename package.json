@@ -10,7 +10,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "pqc-scan": "./bin/pqc-scan.mjs"
+    "pqc-scan": "bin/pqc-scan.mjs"
   },
   "files": [
     "bin",

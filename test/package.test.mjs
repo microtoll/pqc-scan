@@ -26,7 +26,7 @@ test('zero runtime dependencies, and no dev dependencies', () => {
 test('Node 20 or later, an ES module, with the pqc-scan binary', () => {
   assert.equal(pkg.engines.node, '>=20');
   assert.equal(pkg.type, 'module');
-  assert.equal(pkg.bin['pqc-scan'], './bin/pqc-scan.mjs');
+  assert.equal(pkg.bin['pqc-scan'], 'bin/pqc-scan.mjs'); // no leading './': npm 11 drops such a bin entry at publish, silently losing npx
 });
 
 // Node 20's test runner does not expand globs, and its default discovery
