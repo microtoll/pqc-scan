@@ -242,7 +242,7 @@ repositories recorded in `DESIGN.md` §8. Every false positive those reviews
 found became a test.
 
 The command line is free and stays free. If it saves you time, you can
-[sponsor the work on GitHub](https://github.com/sponsors/peterqbristol-ai).
+[sponsor the work on GitHub](https://github.com/sponsors/sealwright).
 
 ## Licence
 
