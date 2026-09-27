@@ -1,8 +1,9 @@
-# The release: on a v* tag, the tests, then npm publish with provenance
-# through GitHub's OIDC (no long-lived token in the repository). Two things
-# must be true for it to succeed: the tag matches package.json's version,
-# and the npm organisation trusts this workflow for provenance (trusted
-# publishing, set up once on npmjs.com under the package's settings).
+# The release: on a v* tag, the tests, then the version is staged on npm
+# with provenance through GitHub's OIDC (no long-lived token in the
+# repository) for the founder to approve. Two things must be true for it to
+# succeed: the tag matches package.json's version, and the npm package
+# trusts this workflow (trusted publishing, set up once on npmjs.com under
+# the package's settings, with direct "npm publish" left off).
 #
 # npm only offers trusted publishing on a package that already exists, so
 # the very first version is published by a person from their own machine;
@@ -34,11 +35,17 @@ jobs:
           [ "$v" = "$tag" ] || { echo "package.json is $v, the tag is $tag"; exit 1; }
           node -e "if (require('./package.json').private) { console.error('package.json is still private'); process.exit(1); }"
       - run: npm test
-      - name: Publish with provenance, unless this version is already on the registry
+      # Staged publishing (npm's recommended setting for a trusted publisher):
+      # the workflow uploads the version with provenance, and nothing appears
+      # under @microtoll/pqc-scan until the founder approves it, on the
+      # package's "Staged Packages" page or with "npm stage approve". A
+      # compromised build run therefore cannot publish on its own.
+      - name: Stage the version with provenance, unless it is already on the registry
         run: |
           v=$(node -p "require('./package.json').version")
           if npm view "@microtoll/pqc-scan@$v" version >/dev/null 2>&1; then
             echo "@microtoll/pqc-scan@$v is already published; nothing to do."
           else
-            npm publish --provenance --access public
+            npm stage publish --provenance --access public
+            echo "Staged @microtoll/pqc-scan@$v: approve it on npmjs.com (Staged Packages) or with: npm stage approve @microtoll/pqc-scan@$v"
           fi
