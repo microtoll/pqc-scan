@@ -7,14 +7,14 @@
 import { readdirSync, readFileSync, lstatSync, statSync } from 'node:fs';
 import { join, resolve, basename } from 'node:path';
 import { posix } from 'node:path';
-import { SourceFile } from './source.js';
+import { SourceFile, TEST_DIRS } from './source.js';
 import { LIBRARIES } from './catalogue.js';
 import { detectWebCrypto } from './detect/webcrypto.js';
 import { detectNodeCrypto } from './detect/node-crypto.js';
 import { detectLibraries } from './detect/libraries.js';
 import { detectParameters } from './detect/parameters.js';
 import { detectNodeTls, isTlsCandidate, readTlsConfigFile } from './detect/tls.js';
-import { LOCKFILE_NAMES, readLockfile, readManifest } from './detect/lockfiles.js';
+import { LOCKFILE_NAMES, readLockfile, readManifest, readManifestName } from './detect/lockfiles.js';
 import { buildReport } from './report.js';
 
 const JS_FILE = /\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)$/i;
@@ -84,7 +84,7 @@ export function scan(dir, options = {}) {
       importSites.push(...libs.importSites);
       tls.push(...detectNodeTls(src));
     } else if (kind === 'manifest') {
-      try { manifests.push({ file: rel, deps: readManifest(text) }); } catch { skipped.push({ path: rel, reason: 'not valid JSON' }); }
+      try { manifests.push({ file: rel, name: readManifestName(text), deps: readManifest(text) }); } catch { skipped.push({ path: rel, reason: 'not valid JSON' }); }
     } else if (kind === 'lockfile') {
       try { locks.push({ file: rel, records: readLockfile(basename(rel), text) }); } catch { skipped.push({ path: rel, reason: 'lockfile could not be read' }); }
     } else if (kind === 'tls') {
@@ -103,8 +103,15 @@ export function scan(dir, options = {}) {
   });
 }
 
-/** One entry per catalogued package seen in a manifest, a lockfile or an import. */
+/**
+ * One entry per catalogued package seen in a manifest, a lockfile or an
+ * import. A package the tree itself provides (the root package.json's name,
+ * or a workspace package's) is left out: a library's own tests import it by
+ * name, and a lockfile links a workspace package under node_modules, but
+ * neither is a dependency (DESIGN.md §8.12; fixture self/).
+ */
 function dependencies(manifests, locks, importSites) {
+  const own = new Set(manifests.map((m) => m.name).filter((n) => n && LIBRARIES[n]));
   const byName = new Map();
   const get = (name) => {
     if (!byName.has(name)) byName.set(name, { name, versions: new Set(), declaredIn: new Set(), lockfiles: new Set(), sections: new Set(), lockDev: [], importedAt: new Set() });
@@ -112,7 +119,7 @@ function dependencies(manifests, locks, importSites) {
   };
   for (const m of manifests) {
     for (const d of m.deps) {
-      if (!LIBRARIES[d.name]) continue;
+      if (!LIBRARIES[d.name] || own.has(d.name)) continue;
       const e = get(d.name);
       e.declaredIn.add(m.file);
       e.sections.add(d.section);
@@ -122,14 +129,14 @@ function dependencies(manifests, locks, importSites) {
   }
   for (const l of locks) {
     for (const r of l.records) {
-      if (!LIBRARIES[r.name]) continue;
+      if (!LIBRARIES[r.name] || own.has(r.name)) continue;
       const e = get(r.name);
       e.versions.add(r.version);
       e.lockfiles.add(l.file);
       e.lockDev.push(r.dev);
     }
   }
-  for (const s of importSites) get(s.package).importedAt.add(`${s.file}:${s.line}`);
+  for (const s of importSites) if (!own.has(s.package)) get(s.package).importedAt.add(`${s.file}:${s.line}`);
 
   const sorted = (set) => [...set].sort(byString);
   return [...byName.values()].sort((a, b) => byString(a.name, b.name)).map((e) => {
@@ -195,7 +202,7 @@ function isExcluded(relPath, name, exclude) {
 
 function isTestPath(rel) {
   const parts = rel.split('/');
-  return parts.slice(0, -1).some((p) => ['test', 'tests', '__tests__', 'spec', 'specs'].includes(p))
+  return parts.slice(0, -1).some((p) => TEST_DIRS.has(p))
     || /\.(test|spec)\./.test(parts[parts.length - 1]);
 }
 

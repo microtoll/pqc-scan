@@ -7,6 +7,33 @@ report); a change to its meaning always raises that version.
 
 ## Unreleased
 
+### From the false-positive review of three public repositories (2026-09-27)
+`panva/jose`, `excalidraw/excalidraw` and `requarks/wiki`, each a shallow
+clone read once. Every reported finding was a genuine use; the seven faults
+below were in the report and the catalogue around them (DESIGN.md §8.12).
+- Dependency versions no longer print as `\1.0.6`: an ordered-list marker is
+  escaped at its punctuation (`1\.0.6`), since a backslash before a digit is
+  not a CommonMark escape (§8.10).
+- A package the tree itself provides (the root `package.json`'s name, or a
+  workspace package's) is no longer listed as a dependency of itself when
+  its own tests import it or the lockfile links it. Fixture `self/`.
+- `test-d` (tsd's type tests) is test code (§8.7).
+- Library members that do no cryptography are read, not pointed at:
+  `jsonwebtoken.decode`, `passport-jwt`'s `ExtractJwt`, `jose`'s
+  `decodeJwt`, `decodeProtectedHeader`, `base64url` and `errors`,
+  `jws.decode`, `fast-jwt`'s `createDecoder` (`plain` in the catalogue).
+  Fixture `libraries/src/decode.js`.
+- `cert`, `certificate` and `x509` are signing words (§8.4): a server's
+  token-signing RSA key pair made under "Generate certificates" is Medium,
+  not High. Fixture `node-crypto/certificates.js`.
+- Catalogue: `passport-saml`, `@node-saml/passport-saml`,
+  `@node-saml/node-saml`, `xml-crypto`, `xml-encryption` (SAML signatures and
+  encrypted assertions), `node-2fa` (one-time codes), `jwks-rsa` and
+  `openid-client`; 57 packages. Fixture `libraries/src/saml.js`.
+- The SHA-1 and MD5 note says where they matter: wherever they protect
+  something; as a plain identifier the risk is lower. Both applications used
+  SHA-1 only for identifiers.
+
 ### From the acceptance run on a second, real application (2026-09-27)
 - A WebAuthn key is a signing key: `webauthn`, `passkey`, `assertion` and
   `cose` are now signing words (§8.4), so a P-256 key read from a passkey's

@@ -73,6 +73,9 @@ test('node:crypto: default, destructured, renamed, required inline, dynamic and 
   // A WebAuthn key read from COSE only ever verifies signatures: Medium, decided by "cose" (a false High found on a real application).
   assert.deepEqual(lines(r, 'webauthn.js'), ['webauthn.js:8 EC P-256 [createPublicKey] medium']);
   assert.equal(only(r, 'webauthn.js')[0].priorityReason, 'key of unstated use; word "cose" near the call suggests signing');
+  // A key pair made under "Generate certificates" signs tokens: a certificate is a signing artefact (a false High found on a public wiki).
+  assert.deepEqual(lines(r, 'certificates.js'), ['certificates.js:5 RSA 2048-bit [generateKeyPairSync] medium']);
+  assert.match(only(r, 'certificates.js')[0].priorityReason, /^key of unstated use; word "cert/);
   assert.deepEqual(lines(r, 'esm.mjs'), [
     'esm.mjs:6 MD5 [createHash]',
     'esm.mjs:10 HMAC-SHA-256 [createHmac]',
@@ -164,12 +167,24 @@ test('libraries: calls mapped by the catalogue, JWT algorithm literals, the docu
   ]);
   // A computed member: one dynamic pointer at the import, never a guess.
   assert.deepEqual(lines(r, 'src/unread.js'), ['src/unread.js:3 dynamic (tweetnacl imported; its uses here could not be read) [import]']);
+  // Reading a token without checking it, and picking it out of a request: no cryptography, so no pointer (false pointers found on a public wiki).
+  assert.deepEqual(lines(r, 'src/decode.js'), []);
+  // SAML sign-in, an encrypted assertion and a two-factor code: three libraries catalogued after the same review.
+  assert.deepEqual(lines(r, 'src/saml.js'), [
+    'src/saml.js:9 SAML signature [Strategy] medium',
+    'src/saml.js:11 RSA key transport (XML encryption) [decrypt] high',
+    'src/saml.js:13 HMAC-SHA-1 [verifyToken]',
+  ]);
+  assert.deepEqual(only(r, 'src/saml.js')[0].notes.map((n) => n.code), ['key-decides']);
 });
 
 test('dependencies: from package.json, the lockfile and the imports; uncatalogued packages left out (§3.1, §8.5)', () => {
   const r = scanFixture('libraries');
   const deps = Object.fromEntries(r.dependencies.map((d) => [d.name, d]));
-  assert.deepEqual(Object.keys(deps), ['@noble/curves', '@noble/hashes', '@noble/post-quantum', 'bcrypt', 'crypto-js', 'http_ece', 'jose', 'jsonwebtoken', 'jws', 'tweetnacl', 'web-push']);
+  assert.deepEqual(Object.keys(deps), [
+    '@noble/curves', '@noble/hashes', '@noble/post-quantum', 'bcrypt', 'crypto-js', 'http_ece', 'jose', 'jsonwebtoken', 'jws',
+    'node-2fa', 'passport-jwt', 'passport-saml', 'tweetnacl', 'web-push', 'xml-encryption',
+  ]);
   assert.equal(deps['left-pad'], undefined);
   assert.deepEqual(deps.tweetnacl, {
     name: 'tweetnacl', versions: ['1.0.3'], direct: true, dev: false,
@@ -242,4 +257,18 @@ test('the command-line fixtures: one High, one Medium and one clean directory', 
     'medium/sign.js:3 Ed25519 [sign] medium',
   ]);
   assert.equal(scanFixture('cli/clean').findings.length, 0);
+});
+
+test('a package the tree itself provides is not a dependency: the root name, a workspace name, its lockfile link, its self-imports (§8.12)', () => {
+  const r = scanFixture('self');
+  // The root package.json is named `jose` and a workspace package `@noble/hashes`; only bcrypt is a dependency.
+  assert.deepEqual(r.dependencies.map((d) => `${d.name} ${d.versions.join(',')} ${d.direct}`), ['bcrypt 5.1.1 true']);
+  // The uses are still uses.
+  assert.deepEqual(lines(r), [
+    'packages/hashes/src/index.js:4 SHA-256 [sha256]',
+    'test-d/api.ts:5 ES256 [algorithm literal] medium',
+  ]);
+  assert.equal(only(r, 'test-d/api.ts')[0].interface, 'library:jose');
+  assert.equal(only(r, 'test-d/api.ts')[0].inTest, true, "test-d is tsd's type-test directory (§8.7)");
+  assert.equal(only(r, 'packages/hashes/src/index.js')[0].inTest, false);
 });

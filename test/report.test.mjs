@@ -11,7 +11,7 @@ import { ROOT, FIXTURES, FIXED_NOW, scanFixture, lines } from './helpers.mjs';
 import { check } from './schema-check.mjs';
 
 const SCHEMA = JSON.parse(readFileSync(join(ROOT, 'schema', 'pqc-scan.schema.json'), 'utf8'));
-const FIXTURE_SETS = ['webcrypto', 'node-crypto', 'traps', 'libraries', 'lockfiles', 'tls', 'cli', '.'];
+const FIXTURE_SETS = ['webcrypto', 'node-crypto', 'traps', 'libraries', 'lockfiles', 'tls', 'cli', 'self', '.'];
 
 /** A throwaway tree: { 'a/b.js': 'text' } → its directory. */
 function tree(files) {
@@ -82,6 +82,7 @@ test('test code is scanned and marked, not hidden; node_modules and .git are nev
     'src/app.test.js': call,
     'test/tooling/compose.mjs': call,
     '__tests__/x.js': call,
+    'test-d/types.ts': call,
     'node_modules/pkg/index.js': call,
     '.git/hooks/pre-commit.js': call,
     'vendor/lib.js': call,
@@ -93,9 +94,10 @@ test('test code is scanned and marked, not hidden; node_modules and .git are nev
       '__tests__/x.js true',
       'src/app.js false',
       'src/app.test.js true',
+      'test-d/types.ts true',
       'test/tooling/compose.mjs true',
     ]);
-    assert.equal(r.summary.findingsInTests, 3);
+    assert.equal(r.summary.findingsInTests, 4);
     assert.deepEqual(r.skipped, [], 'never walked is not the same as skipped');
     assert.equal(r.root, basename(dir));
   } finally {
@@ -231,3 +233,17 @@ test('a scanned repository cannot write links, HTML or table cells into the Mark
 function cells(row) {
   return row.trim().replace(/^\|/, '').replace(/\|$/, '').split(/(?<!\\)\|/).map((c) => c.trim());
 }
+
+test('a dependency version reads as written: "1\\.0.3" in the Markdown source, never "\\1.0.3" (CommonMark escapes punctuation, not digits)', () => {
+  // Every dependency version in the reports on three public repositories began with a stray backslash (§8.12).
+  const md = toMarkdown(scanFixture('libraries'));
+  const section5 = md.slice(md.indexOf('## 5.'), md.indexOf('## 6.'));
+  const row = section5.split('\n').find((l) => l.startsWith('| `tweetnacl`'));
+  assert.ok(row, 'tweetnacl is in the dependency table');
+  assert.equal(cells(row)[1], '1\\.0.3');
+  for (const set of FIXTURE_SETS) {
+    const m = toMarkdown(scanFixture(set));
+    const deps = m.slice(m.indexOf('## 5.'), m.indexOf('## 6.'));
+    assert.ok(!/\\\d/.test(deps), `${set}: no backslash before a digit in the dependency table`);
+  }
+});

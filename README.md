@@ -21,15 +21,97 @@ later. Free, and the command line stays free: a hosted report (trends over
 time, an organisation-wide view) may exist later, and would read the same
 JSON file; nothing of it is built.
 
-## Run it
+## Install
 
-Not yet published. Until it is, run it from a checkout of this repository:
+`pqc-scan` is a command-line tool. You need two things on your computer:
+
+1. **Node.js 20 or later.** Check with `node --version` in a terminal
+   (Command Prompt, PowerShell or Windows Terminal on Windows; Terminal on
+   macOS or Linux). If the command is not found, or prints a version below
+   20, install the current "LTS" release from <https://nodejs.org>. On
+   Windows the installer is a normal `.msi`; accept the defaults, then open a
+   **new** terminal window so it picks up the change.
+2. **The scanner's code.** It is not yet on the npm registry (the publish
+   gate is closed), so for now you take it from this repository in one of
+   two ways:
+   - **Download**: on the repository page, *Code → Download ZIP*, then unzip
+     it somewhere convenient, for example `C:\Tools\pqc-scan` on Windows or
+     `~/tools/pqc-scan` elsewhere.
+   - **Clone**, if you have git:
+     ```sh
+     git clone https://github.com/microtoll/pqc-scan.git
+     ```
+
+There is nothing else to install: the scanner has no dependencies, so there
+is no `npm install` step, and it needs no configuration, no account and no
+network connection.
+
+Once it is published, this becomes one line with no download at all:
 
 ```sh
-node bin/pqc-scan.mjs path/to/your/app                 # the Markdown report on standard output
-node bin/pqc-scan.mjs path/to/your/app --json pqc-scan.json --md pqc-scan.md
-node bin/pqc-scan.mjs . --fail-on high                 # exit 1 if anything is High
+npx @microtoll/pqc-scan path/to/your/app
 ```
+
+or, to install it once and then call it as `pqc-scan` from anywhere:
+
+```sh
+npm install -g @microtoll/pqc-scan
+```
+
+## Run it
+
+Point it at the folder that holds your application's code (the one with its
+`package.json`). Until the package is published, call the script in the
+scanner's `bin` folder by its path.
+
+On **Windows** (PowerShell or Command Prompt), with the scanner unzipped at
+`C:\Tools\pqc-scan` and your app at `C:\Code\my-app`:
+
+```powershell
+node C:\Tools\pqc-scan\bin\pqc-scan.mjs C:\Code\my-app
+```
+
+On **macOS or Linux**:
+
+```sh
+node ~/tools/pqc-scan/bin/pqc-scan.mjs ~/code/my-app
+```
+
+That prints the report to the terminal. To save it as files instead, add
+where to write them (a `.md` file you read, a `.json` file for tools):
+
+```powershell
+node C:\Tools\pqc-scan\bin\pqc-scan.mjs C:\Code\my-app --md pqc-scan.md --json pqc-scan.json
+```
+
+Open `pqc-scan.md` in any editor or Markdown viewer (Visual Studio Code
+shows it with *Ctrl+Shift+V*). Start with section 1, the summary, then
+section 3, the priorities, where each High or Medium says which line of your
+code it points at and why.
+
+A scan of a medium-sized application takes a few seconds. If you are in the
+scanner's own folder, `.` means "this folder", and `--help` prints every
+option:
+
+```sh
+node bin/pqc-scan.mjs --help
+node bin/pqc-scan.mjs . --fail-on high      # exit 1 if anything is High (for CI)
+```
+
+Things that catch people out:
+
+- **"node is not recognized"** on Windows: Node.js is not installed, or the
+  terminal was opened before the installer ran. Install it, then open a new
+  terminal.
+- **A path with spaces** needs quotes: `"C:\My Projects\app"`.
+- **Nothing found?** The scanner reads only JavaScript and TypeScript
+  (`.js`, `.mjs`, `.cjs`, `.ts`, `.mts`, `.cts`, `.jsx`, `.tsx`), lockfiles
+  and TLS configuration files. Code in other languages is not seen (see
+  "What it cannot see").
+- **It never changes your files.** It reads them and writes only the report
+  files you name.
+
+The full set of options:
 
 | Option | Meaning |
 | --- | --- |
@@ -72,7 +154,7 @@ It needs Node 20 or later on the runner; GitHub's hosted runners have it.
   (`ML-KEM-768`, `ML-DSA-65`, `X25519MLKEM768`, `MLKEM768-X25519`).
 - **`node:crypto`**: hashes, HMACs, ciphers, key pairs, signatures, Diffie–
   Hellman, public-key encryption, PBKDF2, scrypt, HKDF and random numbers.
-- **Libraries**: about fifty catalogued packages (`tweetnacl`, `libsodium`, the
+- **Libraries**: nearly sixty catalogued packages (`tweetnacl`, `libsodium`, the
   `@noble` family, `jose`, `jsonwebtoken`, `bcrypt`, `crypto-js`,
   `web-push`, `openpgp`, …), from `package.json`, `package-lock.json`,
   `yarn.lock` and `pnpm-lock.yaml`, with their calls where the catalogue
@@ -123,9 +205,10 @@ it. A person should review each High.
   never loads is still reported.
 - A framework's own cryptography, unless the framework is in the catalogue.
 - Values that are not written down where it looks: it follows a `const` in
-  the same block, or one hop to a relative import, and nothing else. A
-  function parameter that shadows a module-level constant of the same name
-  is the one known way this can mislead.
+  the same block, or one hop to a relative import (not an import by a
+  workspace package's name), and nothing else. A function parameter that
+  shadows a module-level constant of the same name is the one known way this
+  can mislead.
 - **Evidence is copied as written.** A secret on the same line as a
   cryptographic call will appear in the report. Treat the report like the
   code it describes.

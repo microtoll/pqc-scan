@@ -43,6 +43,9 @@ export function detectLibraries(src) {
     if (!entry) continue;
     const operation = r.path.length ? r.path.join('.') : '()';
     const spec = lookup(entry, pkg.subpath, r.path);
+    // A member the catalogue lists as doing no cryptography (`jwt.decode`):
+    // the use was read, and there is nothing to report (DESIGN.md §8.5).
+    if (!spec && isPlain(entry, r.path)) { used.add(pkg.name); continue; }
     if (spec) {
       for (const algo of fromSpec(src, call, spec)) findings.push(makeFinding(src, call.at, algo, { iface: iface(pkg.name), operation }));
       used.add(pkg.name);
@@ -92,6 +95,13 @@ export function detectLibraries(src) {
     findings.push(makeFinding(src, site.index, dynamicAlgorithm(`${name} imported; its uses here could not be read`), { iface: iface(name), operation: 'import' }));
   }
   return { findings, importSites };
+}
+
+/** Whether a member path is one the catalogue marks as doing no cryptography (`plain`). */
+function isPlain(entry, path) {
+  if (!entry.plain || path.length === 0) return false;
+  const key = path.join('.');
+  return entry.plain.some((p) => key === p || key.startsWith(`${p}.`));
 }
 
 /** The catalogue entry for a member path: the longest matching key wins. */

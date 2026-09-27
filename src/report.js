@@ -322,7 +322,12 @@ function escapeText(value) {
   return String(value ?? '')
     .replace(/\r?\n/g, ' ')
     .replace(/[\\`*_[\]|<>~&]/g, (c) => `\\${c}`)
-    .replace(/^([#+\-=]|\d+[.)])/, (m) => `\\${m}`);
+    .replace(/^[#+\-=]/, (m) => `\\${m}`)
+    // An ordered-list marker ("1." or "1)") is escaped at its punctuation,
+    // "1\.": a backslash before a digit is not an escape in CommonMark (§2.4)
+    // and is printed as written, which turned every dependency version into
+    // "\1.0.6" in the reports on three public repositories (DESIGN.md §8.12).
+    .replace(/^(\d+)([.)])/, (_, digits, mark) => `${digits}\\${mark}`);
 }
 
 /**

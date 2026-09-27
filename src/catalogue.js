@@ -227,7 +227,7 @@ function displayName(family, { keySize, curve, hash, mode }) {
 // The codes are part of the JSON schema; the texts may be reworded.
 export const NOTE_TEXT = {
   'aes-128': 'AES-128: consider AES-256 for data that must outlive the transition (Grover\'s algorithm halves the effective strength).',
-  'weak-hash': 'SHA-1 and MD5: replace regardless of quantum computers; collisions are practical today.',
+  'weak-hash': 'SHA-1 and MD5: collisions are practical today, so replace them wherever they protect something (a signature, a stored password, an integrity check), regardless of quantum computers. As a plain identifier the risk is lower: check what a collision would let someone do.',
   'replace-now': 'DES, 3DES, RC4, RC2 and Blowfish: replace now, on classical grounds.',
   ecb: 'ECB mode shows patterns in the data: replace now, on classical grounds.',
   'pbkdf2-iterations': 'PBKDF2 with under 100,000 iterations: weak on classical grounds.',
@@ -409,7 +409,11 @@ const SESSION_WORDS = [/^tls$/, /^sessions?$/, /^handshake/, /^transport/, /^soc
 // passkey's public key only ever verifies signatures. Found on a real
 // application, where a WebAuthn P-256 key read from COSE was reported High
 // (fixture node-crypto/webauthn.js).
-const SIGN_WORDS = [/^sign(s|ed|ing|er|ature|atures)?$/, /^verif/, /^jwt$/, /^auth/, /^webauthn$/, /^passkeys?$/, /^assertions?$/, /^cose$/];
+// A certificate (X.509, or a key pair a server calls its "certs") is a
+// signing artefact. Found on a public wiki, where the RSA key pair that signs
+// its tokens was made under the comment "Generate certificates" and reported
+// High (fixture node-crypto/certificates.js, DESIGN.md §8.12).
+const SIGN_WORDS = [/^sign(s|ed|ing|er|ature|atures)?$/, /^verif/, /^jwt$/, /^auth/, /^webauthn$/, /^passkeys?$/, /^assertions?$/, /^cose$/, /^certs?$/, /^certificates?$/, /^x509$/];
 
 const firstWord = (words, patterns) => {
   for (const w of words) if (patterns.some((p) => p.test(w))) return w;
@@ -530,7 +534,7 @@ const SODIUM_CALLS = {
 const SODIUM = { provides: 'X25519 (box, sealed box, key exchange), Ed25519, XChaCha20-Poly1305, XSalsa20-Poly1305, AES-256-GCM, Argon2id, BLAKE2b', pq: 'no', calls: SODIUM_CALLS };
 const JWT = (provides, pq = 'no') => ({ provides, pq, jose: true });
 
-/** @type {Record<string, {provides: string, pq: string, calls?: object, subpaths?: object, jose?: boolean}>} */
+/** @type {Record<string, {provides: string, pq: string, calls?: object, subpaths?: object, jose?: boolean, plain?: string[]}>} */
 export const LIBRARIES = {
   tweetnacl: {
     provides: 'X25519 with XSalsa20-Poly1305 (box), Ed25519 (sign), XSalsa20-Poly1305 (secretbox), SHA-512', pq: 'no',
@@ -589,13 +593,17 @@ export const LIBRARIES = {
     provides: 'ECDSA and ECDH on secp256k1, P-256 and other curves; EdDSA on Ed25519', pq: 'no',
     calls: { ec: S('EC', { curveArg: 0 }), eddsa: S('Ed25519') },
   },
-  jsonwebtoken: JWT('JSON Web Token signatures: HMAC (HS*), RSA (RS*, PS*), ECDSA (ES*)'),
-  jose: JWT('JSON Web Signature and Encryption: RSA, ECDSA, EdDSA, HMAC, RSA-OAEP, ECDH-ES, AES key wrap, AES-GCM', 'check'),
-  jws: JWT('JSON Web Signature: HMAC, RSA, ECDSA'),
+  // `plain`: members that do no cryptography (reading a token without checking
+  // it; picking the token out of a request). A file that uses only these gets
+  // no "could not be read" pointer: its use was read, and there is nothing to
+  // report (fixture libraries/src/decode.js, DESIGN.md §8.5, §8.12).
+  jsonwebtoken: { ...JWT('JSON Web Token signatures: HMAC (HS*), RSA (RS*, PS*), ECDSA (ES*)'), plain: ['decode'] },
+  jose: { ...JWT('JSON Web Signature and Encryption: RSA, ECDSA, EdDSA, HMAC, RSA-OAEP, ECDH-ES, AES key wrap, AES-GCM', 'check'), plain: ['decodeJwt', 'decodeProtectedHeader', 'base64url', 'errors'] },
+  jws: { ...JWT('JSON Web Signature: HMAC, RSA, ECDSA'), plain: ['decode'] },
   jwa: JWT('JSON Web Algorithms: HMAC, RSA, ECDSA'),
-  'fast-jwt': JWT('JSON Web Token signatures: HMAC, RSA, ECDSA, EdDSA'),
+  'fast-jwt': { ...JWT('JSON Web Token signatures: HMAC, RSA, ECDSA, EdDSA'), plain: ['createDecoder'] },
   'express-jwt': JWT('JSON Web Token verification for Express (uses jsonwebtoken)'),
-  'passport-jwt': JWT('JSON Web Token verification for Passport (uses jsonwebtoken)'),
+  'passport-jwt': { ...JWT('JSON Web Token verification for Passport (uses jsonwebtoken)'), plain: ['ExtractJwt'] },
   jsrsasign: { ...JWT('RSA, ECDSA, DSA, X.509, JSON Web Signature'), calls: { 'KEYUTIL.generateKeypair': S('RSA', { keyTypeArg: 0 }) } },
   bcrypt: { provides: 'bcrypt password hashing', pq: 'n/a', calls: { hash: S('bcrypt', { costArg: [1] }), hashSync: S('bcrypt', { costArg: [1] }), genSalt: S('bcrypt', { costArg: [0] }), genSaltSync: S('bcrypt', { costArg: [0] }), compare: S('bcrypt'), compareSync: S('bcrypt') } },
   bcryptjs: { provides: 'bcrypt password hashing', pq: 'n/a', calls: { hash: S('bcrypt', { costArg: [1] }), hashSync: S('bcrypt', { costArg: [1] }), genSalt: S('bcrypt', { costArg: [0] }), genSaltSync: S('bcrypt', { costArg: [0] }), compare: S('bcrypt'), compareSync: S('bcrypt') } },
@@ -664,6 +672,17 @@ export const LIBRARIES = {
   '@hpke/ml-kem': { provides: 'ML-KEM for HPKE', pq: 'yes', calls: { MlKem512: S('ML-KEM', { name: 'ML-KEM-512' }), MlKem768: S('ML-KEM', { name: 'ML-KEM-768' }), MlKem1024: S('ML-KEM', { name: 'ML-KEM-1024' }) } },
   '@hpke/hybridkem-x-wing': { provides: 'the X-Wing hybrid KEM (ML-KEM-768 with X25519) for HPKE', pq: 'yes', calls: { XWing: S('Hybrid KEM', { name: 'X-Wing' }) } },
   '@microtoll/crypto-core': { provides: 'AES-256-GCM, HKDF-SHA-256, Ed25519, a P-256 ECDH seal, PBKDF2-SHA-256; an optional hybrid MLKEM768-X25519 seal (off by default)', pq: 'partial' },
+  // Added after the false-positive review of three public repositories
+  // (DESIGN.md §8.12): a wiki's SAML sign-in, its encrypted assertions and its
+  // two-factor codes went unreported because their libraries were not here.
+  'passport-saml': { provides: 'SAML 2.0 sign-in for Passport: the identity provider\'s XML signatures (RSA with SHA-1, SHA-256 or SHA-512, set by configuration); RSA key transport where assertions are encrypted', pq: 'no', calls: { Strategy: S('Signature', { name: 'SAML signature', noteCodes: ['key-decides'] }) } },
+  '@node-saml/passport-saml': { provides: 'SAML 2.0 sign-in for Passport (the maintained passport-saml): XML signatures with RSA; RSA key transport where assertions are encrypted', pq: 'no', calls: { Strategy: S('Signature', { name: 'SAML signature', noteCodes: ['key-decides'] }) } },
+  '@node-saml/node-saml': { provides: 'SAML 2.0 (the core of passport-saml): XML signatures with RSA; RSA key transport where assertions are encrypted', pq: 'no', calls: { SAML: S('Signature', { name: 'SAML signature', noteCodes: ['key-decides'] }) } },
+  'xml-crypto': { provides: 'XML digital signatures (RSA-SHA-1, RSA-SHA-256, RSA-SHA-512, HMAC-SHA-1) and digests, as SAML uses them', pq: 'no', calls: { SignedXml: S('Signature', { name: 'XML signature', noteCodes: ['key-decides'] }) } },
+  'xml-encryption': { provides: 'XML encryption as SAML uses it: RSA key transport (RSA-OAEP or RSA-1.5) of an AES content key', pq: 'no', calls: { encrypt: S('RSA', { name: 'RSA key transport (XML encryption)' }), decrypt: S('RSA', { name: 'RSA key transport (XML encryption)' }) } },
+  'node-2fa': { provides: 'one-time passwords (TOTP): HMAC-SHA-1 (through notp)', pq: 'n/a', calls: { generateToken: S('HMAC', { hash: 'SHA-1' }), verifyToken: S('HMAC', { hash: 'SHA-1' }) } },
+  'jwks-rsa': { ...JWT('fetches JSON Web Key Sets to verify JSON Web Tokens (RSA and ECDSA keys)') },
+  'openid-client': { ...JWT('OpenID Connect client: ID token signatures (RS256, ES256, EdDSA, …) and optional encrypted tokens, through jose', 'check') },
 };
 
 /** '@noble/curves/ed25519.js' → { name: '@noble/curves', subpath: 'ed25519' }; null for relative or node: paths. */

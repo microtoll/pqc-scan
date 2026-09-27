@@ -21,7 +21,9 @@ const STATEMENT_KEYWORDS = new Set(['import', 'export', 'const', 'let', 'var', '
 // How far above a call the priority heuristic looks (DESIGN.md §8.4).
 const WORD_WINDOW_LINES = 8;
 const EVIDENCE_MAX = 200;
-const TEST_DIRS = new Set(['test', 'tests', '__tests__', 'spec', 'specs']);
+// `test-d` is tsd's directory for type tests: found unmarked on a public
+// library (DESIGN.md §8.7, §8.12). scan.js reads the same set.
+export const TEST_DIRS = new Set(['test', 'tests', '__tests__', 'spec', 'specs', 'test-d']);
 
 /**
  * @typedef {{ kind: 'string', value: string } | { kind: 'number', value: number } | { kind: 'null' }

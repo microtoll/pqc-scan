@@ -147,7 +147,8 @@ Two outputs from one scan:
      review of each High.
   4. **Symmetric and hash notes**: AES-128 → consider 256 for data that
      must outlive the transition (Grover's algorithm halves the effective
-     strength); SHA-1 and MD5 → replace regardless of quantum; 3DES/RC4/DES
+     strength); SHA-1 and MD5 → replace wherever they protect something,
+     regardless of quantum (lower risk as a plain identifier); 3DES/RC4/DES
      → replace now; PBKDF2 iterations under 100,000 flagged as weak on
      classical grounds.
   5. **Dependencies**: each catalogued library, its version, what it
@@ -194,7 +195,8 @@ schema keeps the door open.
   reported: a static scan cannot tell whether a file runs, and the report
   says so rather than guessing.
 - Three public repositories chosen by the founder: the false-positive rate
-  reviewed by hand; every false positive becomes a test case.
+  reviewed by hand; every false positive becomes a test case. (Done on
+  2026-09-27: §8.12.)
 - Both reports read cleanly to someone IT-literate but not a specialist.
 
 ## 7. Shape of the repository
@@ -275,10 +277,11 @@ decides the algorithm, are reported as dynamic. Node's one-shot
   reading.
 - A key whose use the call does not say (`generateKeyPair('ec')`, a JSON
   Web Key with `crv: 'P-256'`) → Medium if a signing word is near
-  (`sign`, `verify`, `signature`, `jwt`, `auth`, and since the acceptance
+  (`sign`, `verify`, `signature`, `jwt`, `auth`; since the acceptance
   run `webauthn`, `passkey`, `assertion`, `cose`: a passkey's key only
-  verifies signatures) and no sealing word;
-  otherwise as key agreement.
+  verifies signatures; since the public review (§8.12) `cert`,
+  `certificate`, `x509`: a certificate is a signing artefact) and no sealing
+  word; otherwise as key agreement.
 - "Near" means the call's line, the eight lines above it, and the file's
   name; identifiers are split at camelCase and underscores, and comments
   count. Every finding's `priorityReason` names the word that decided it.
@@ -286,7 +289,7 @@ decides the algorithm, are reported as dynamic. Node's one-shot
 
 ### 8.5 Libraries
 
-The catalogue (`src/catalogue.js`, 49 packages, dated) records what each
+The catalogue (`src/catalogue.js`, 57 packages, dated) records what each
 package provides and whether it offers post-quantum algorithms (`yes`,
 `no`, `partial`, or `check` where it depends on the version). For the
 common packages it also maps calls to algorithms (`nacl.box` → X25519 with
@@ -298,7 +301,10 @@ of an `alg` or `algorithm` field, or in an `algorithms: [...]` list (a
 verifier that accepts unsigned tokens). When a file imports a catalogued package
 and none of its uses there could be read, one dynamic finding points at the
 import. `jsonwebtoken`'s `sign` without an `algorithm` is reported as
-HS256, its documented default.
+HS256, its documented default. A member the catalogue marks as doing no
+cryptography (`plain`: `jwt.decode`, `passport-jwt`'s `ExtractJwt`, `jose`'s
+`decodeJwt`) counts as a use that was read, so a file that only decodes a
+token gets no pointer (§8.12).
 
 ### 8.6 TLS configuration that states no groups
 
@@ -328,7 +334,8 @@ fields are written).
   dependencies by name; configurations by file and line; directories are
   walked in byte order of their names. Only `scannedAt` differs between two
   scans of the same tree.
-- Test code (a `test`, `tests`, `__tests__`, `spec` directory, or a
+- Test code (a `test`, `tests`, `__tests__`, `spec`, `specs` or `test-d`
+  directory, or a
   `.test.`/`.spec.` file name) is scanned and marked `inTest`, not hidden:
   a composition in test tooling is part of the inventory.
 - Evidence is the source line, trimmed and cut at 200 characters. It is
@@ -389,3 +396,82 @@ HTML.
   uses.
 - `actions/upload-artifact` is pinned to a full commit SHA, as the engine
   pins its own actions.
+
+### 8.12 From the false-positive review of three public repositories (2026-09-27)
+
+The third acceptance item (§6). Three repositories of different shapes,
+proposed at the founder's request, each a shallow clone read once and never
+written to:
+
+| Repository | Commit | Why this shape | Read | Findings | Quantum-vulnerable |
+| --- | --- | --- | --- | --- | --- |
+| `panva/jose` | `55c959f` | a JSON Web Token library: every finding should be genuine | 145 files | 108 in 32 files, 16 dynamic | 21 (11 High, 10 Medium) |
+| `excalidraw/excalidraw` | `84e3f5a` | a large browser application with almost no cryptography: noise | 712 files | 9 in 4 files | 2 (Medium) |
+| `requarks/wiki` | `712a3a5` | a server application with a typical sign-in stack | 272 files | 13 in 11 files | 6, then 7 after the fixes |
+
+Every reported finding was a genuine cryptographic use, and a hand search of
+jose's source (31 `subtle` calls) and of Excalidraw (10 call sites) found
+nothing missed; `exportKey` and `getPublicKey` are not read, by design, since
+they perform no cryptography. The faults were around the findings, in the
+report and the catalogue. Each is fixed with a fixture and a test:
+
+1. **Every dependency version printed as `\1.0.6`.** `escapeText` escaped an
+   ordered-list marker by putting the backslash before the digit; CommonMark
+   §2.4 escapes only punctuation, so the backslash was printed. Now `1\.0.6`,
+   which renders as `1.0.6` (§8.10; a test in `report.test.mjs`). This was
+   in every report with a lockfile.
+2. **A package listed as a transitive dependency of itself.** jose's type
+   tests import `jose` by name (a package self-reference) and the table
+   listed it, version unknown. The engine's own report had likewise listed
+   `@microtoll/crypto-core`, declared by its sibling packages. A package the
+   tree provides (the root `package.json`'s name, or a workspace package's,
+   including its `node_modules` link in the lockfile) is not a dependency and
+   is left out of the table; its uses are still findings. Fixture `self/`.
+3. **`test-d` not marked as test code.** tsd's directory for type tests; 21
+   of jose's findings. Added to the test directories (§8.7).
+4. **Two "could not be read" pointers at code that does no cryptography.**
+   Wiki.js's browser code imports `jsonwebtoken` only to `decode` a token
+   without checking it, and its server imports `passport-jwt` only for
+   `ExtractJwt`. The catalogue now marks such members `plain`; a file that
+   uses only those has been read and gets no pointer (§8.5). Fixture
+   `libraries/src/decode.js`.
+5. **A token-signing key pair reported High.** Wiki.js makes its RSA key pair
+   under the comment "Generate certificates" and nothing else nearby; the
+   same call elsewhere in the tree was Medium only because a doc comment
+   said "Authentication". A certificate is a signing artefact: `cert`,
+   `certificate` and `x509` are signing words (§8.4). Fixture
+   `node-crypto/certificates.js`.
+6. **SAML sign-in, encrypted assertions and two-factor codes unreported.**
+   Wiki.js's `passport-saml` (RSA signatures on assertions, RSA key
+   transport where they are encrypted) and `node-2fa` were not catalogued,
+   so invisible. §3.2 says an uncatalogued framework is not reported, but a
+   sign-in stack this common should be. Added: `passport-saml`,
+   `@node-saml/passport-saml`, `@node-saml/node-saml`, `xml-crypto`,
+   `xml-encryption`, `node-2fa`, `jwks-rsa`, `openid-client` (57 packages).
+   Fixture `libraries/src/saml.js`. Wiki.js now shows the SAML signature
+   (Medium) and four more libraries.
+7. **The SHA-1 note overstated.** Both applications use SHA-1 only as a
+   content or path identifier (a file id, a page hash), and the note said
+   "replace regardless". It now says where it matters: wherever the hash
+   protects something; as a plain identifier the risk is lower, and the
+   reader checks what a collision would allow.
+
+After the fixes: jose 0 libraries (was 1) and 61 findings in test code (was
+40); Excalidraw unchanged apart from readable versions; Wiki.js 7
+quantum-vulnerable uses (0 High, 7 Medium; was 1 High), 0 dynamic (was 2),
+16 libraries (was 12); the engine 0 libraries (was 1), otherwise unchanged.
+
+Right by the design, and worth knowing:
+
+- Excalidraw's AES-GCM key length is "not written here": the constant comes
+  from a workspace package (`@excalidraw/common`), and §8.1 follows relative
+  imports only. The constant's name is in the evidence for a person to
+  follow. The JSON Web Key beside it says `alg: "A128GCM"`; the scanner reads
+  `length`, not a JSON Web Key's `alg`, for AES.
+- jose's RSA and X25519 key pairs in its tests are High by the words
+  `encrypt` and `decrypt` near them: right, since JSON Web Encryption's key
+  management is sealing. Its `tap/` harness is not a test directory by any
+  convention and stays unmarked.
+- Wiki.js's `https.createServer` sets no groups: "unstated", with the
+  OpenSSL note (§8.6), not classical-only.
+- SHA-1 as an identifier is still listed: an inventory lists what is used.

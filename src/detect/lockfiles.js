@@ -135,6 +135,16 @@ function parsePnpmKey(raw, major) {
  * package.json: the declared dependencies, by section.
  * @returns {{ name: string, range: string, section: string }[]}
  */
+/**
+ * The `name` of a package.json, or null. A package the tree itself provides
+ * (its root, or a workspace package) is not one it depends on, however its
+ * own files import it (DESIGN.md §8.12).
+ */
+export function readManifestName(text) {
+  const pkg = JSON.parse(text);
+  return pkg && typeof pkg.name === 'string' && pkg.name ? pkg.name : null;
+}
+
 export function readManifest(text) {
   const pkg = JSON.parse(text);
   const out = [];
