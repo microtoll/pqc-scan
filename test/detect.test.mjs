@@ -70,6 +70,9 @@ test('node:crypto: default, destructured, renamed, required inline, dynamic and 
   ]);
   assert.deepEqual(lines(r, 'dynamic-import.mjs'), ['dynamic-import.mjs:5 dynamic (hash held in algo) [createHash]']);
   assert.deepEqual(lines(r, 'import-equals.ts'), ['import-equals.ts:5 SHA-384 [createHash]']);
+  // A WebAuthn key read from COSE only ever verifies signatures: Medium, decided by "cose" (a false High found on a real application).
+  assert.deepEqual(lines(r, 'webauthn.js'), ['webauthn.js:8 EC P-256 [createPublicKey] medium']);
+  assert.equal(only(r, 'webauthn.js')[0].priorityReason, 'key of unstated use; word "cose" near the call suggests signing');
   assert.deepEqual(lines(r, 'esm.mjs'), [
     'esm.mjs:6 MD5 [createHash]',
     'esm.mjs:10 HMAC-SHA-256 [createHmac]',

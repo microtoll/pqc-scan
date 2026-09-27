@@ -22,6 +22,7 @@ const JS_FILE = /\.(js|mjs|cjs|jsx|ts|mts|cts|tsx)$/i;
 // beyond the catalogue, which is read from the lockfiles instead).
 const ALWAYS_SKIPPED = new Set(['node_modules', '.git']);
 export const MAX_FILE_BYTES = 2 * 1024 * 1024;
+const BINARY_SNIFF_CHARS = 8000;
 const RESOLVE_EXTENSIONS = ['', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts', '.jsx', '/index.js', '/index.ts', '/index.mjs'];
 
 /**
@@ -47,7 +48,11 @@ export function scan(dir, options = {}) {
     if (size > MAX_FILE_BYTES) { skipped.push({ path: f.rel, reason: 'larger than 2 MB' }); continue; }
     let text;
     try { text = readFileSync(f.abs, 'utf8'); } catch (err) { skipped.push({ path: f.rel, reason: `unreadable (${err.code ?? 'error'})` }); continue; }
-    if (text.includes('\u0000')) { skipped.push({ path: f.rel, reason: 'binary' }); continue; }
+    // Binary if a NUL appears in the first 8,000 bytes, git's own rule. A NUL
+    // anywhere was too wide: a real source file can hold a raw control
+    // character in a regular expression, far down, and was skipped unread
+    // (found on a real application; test/report.test.mjs).
+    if (text.slice(0, BINARY_SNIFF_CHARS).includes('\u0000')) { skipped.push({ path: f.rel, reason: 'binary' }); continue; }
     texts.set(f.rel, { kind: f.kind, text });
   }
 

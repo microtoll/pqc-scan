@@ -128,6 +128,23 @@ test('files over 2 MB, binary files and symbolic links are skipped and listed (ย
   }
 });
 
+test('binary means a NUL in the first 8,000 bytes: a source file with a raw control character further down is still read', () => {
+  // Found on a real application: a regular expression with a raw NUL in its
+  // character class, 108 KB into a source file, made the whole file skipped.
+  const call = "export const h = (d) => crypto.subtle.digest('SHA-256', d);\n";
+  const dir = tree({
+    'late.js': `// ${'-'.repeat(9000)}\n${call}export const clean = (s) => s.replace(/[\u0000-\u001f]/g, ' ');\n`,
+    'early.js': `\u0000${call}`,
+  });
+  try {
+    const r = scan(dir, { now: FIXED_NOW });
+    assert.deepEqual(lines(r), ['late.js:2 SHA-256 [digest]']);
+    assert.deepEqual(r.skipped, [{ path: 'early.js', reason: 'binary' }]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('evidence is the trimmed source line, cut at 200 characters (ยง8.7)', () => {
   const dir = tree({ 'long.js': `    const h = crypto.subtle.digest('SHA-256', d); // ${'y'.repeat(400)}\n` });
   try {

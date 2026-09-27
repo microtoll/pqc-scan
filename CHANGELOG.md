@@ -7,6 +7,14 @@ report); a change to its meaning always raises that version.
 
 ## Unreleased
 
+### From the acceptance run on a second, real application (2026-09-27)
+- A WebAuthn key is a signing key: `webauthn`, `passkey`, `assertion` and
+  `cose` are now signing words (§8.4), so a P-256 key read from a passkey's
+  COSE key is Medium, not High. Fixture `node-crypto/webauthn.js`.
+- A file is binary only if a NUL appears in its first 8,000 bytes (git's
+  rule). A NUL anywhere skipped a real source file, unread, because a regular
+  expression far down held a raw control character (§8.7).
+
 ### Scaffold (2026-09-27)
 - Repository created under the Microtoll publish gate (`"private": true`,
   no remote). Apache-2.0. Node 20 or later; no runtime dependencies.

@@ -275,7 +275,9 @@ decides the algorithm, are reported as dynamic. Node's one-shot
   reading.
 - A key whose use the call does not say (`generateKeyPair('ec')`, a JSON
   Web Key with `crv: 'P-256'`) → Medium if a signing word is near
-  (`sign`, `verify`, `signature`, `jwt`, `auth`) and no sealing word;
+  (`sign`, `verify`, `signature`, `jwt`, `auth`, and since the acceptance
+  run `webauthn`, `passkey`, `assertion`, `cose`: a passkey's key only
+  verifies signatures) and no sealing word;
   otherwise as key agreement.
 - "Near" means the call's line, the eight lines above it, and the file's
   name; identifiers are split at camelCase and underscores, and comments
@@ -334,7 +336,10 @@ fields are written).
   appear in the report (README, "what it cannot see").
 - `node_modules` and `.git` are never walked; `--exclude` adds names.
   Symbolic links are not followed (a link could lead out of the tree); files
-  over 2 MB are skipped; both are listed in `skipped[]`.
+  over 2 MB are skipped, and so are binary files (a NUL in the first 8,000
+  bytes, git's own rule; a NUL anywhere skipped a real source file with a
+  raw control character in a regular expression); all are listed in
+  `skipped[]`.
 - Exit codes: 0 done, 1 the `--fail-on` threshold was met, 2 a usage or
   read error.
 - With neither `--json` nor `--md`, the Markdown goes to standard output

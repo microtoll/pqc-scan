@@ -405,7 +405,11 @@ export function fromJoseAlg(alg) {
 // derive, sealing, shared, bits.
 const SEAL_WORDS = [/^seal/, /^unseal/, /^encrypt/, /^decrypt/, /^(un)?wrap/, /^stor(e|ed|es|age|ing)$/, /^envelope/, /^archiv/, /^backup/, /^persist/];
 const SESSION_WORDS = [/^tls$/, /^sessions?$/, /^handshake/, /^transport/, /^sockets?$/];
-const SIGN_WORDS = [/^sign(s|ed|ing|er|ature|atures)?$/, /^verif/, /^jwt$/, /^auth/];
+// WebAuthn, passkey, assertion and COSE (the key format WebAuthn uses): a
+// passkey's public key only ever verifies signatures. Found on a real
+// application, where a WebAuthn P-256 key read from COSE was reported High
+// (fixture node-crypto/webauthn.js).
+const SIGN_WORDS = [/^sign(s|ed|ing|er|ature|atures)?$/, /^verif/, /^jwt$/, /^auth/, /^webauthn$/, /^passkeys?$/, /^assertions?$/, /^cose$/];
 
 const firstWord = (words, patterns) => {
   for (const w of words) if (patterns.some((p) => p.test(w))) return w;
