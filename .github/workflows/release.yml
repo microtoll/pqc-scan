@@ -2,7 +2,12 @@
 # through GitHub's OIDC (no long-lived token in the repository). Two things
 # must be true for it to succeed: the tag matches package.json's version,
 # and the npm organisation trusts this workflow for provenance (trusted
-# publishing, set up once on npmjs.com for @microtoll/pqc-scan).
+# publishing, set up once on npmjs.com under the package's settings).
+#
+# npm only offers trusted publishing on a package that already exists, so
+# the very first version is published by a person from their own machine;
+# a tag for a version that is already on the registry is recorded and
+# skipped here, not failed.
 name: Release
 
 on:
@@ -29,4 +34,11 @@ jobs:
           [ "$v" = "$tag" ] || { echo "package.json is $v, the tag is $tag"; exit 1; }
           node -e "if (require('./package.json').private) { console.error('package.json is still private'); process.exit(1); }"
       - run: npm test
-      - run: npm publish --provenance --access public
+      - name: Publish with provenance, unless this version is already on the registry
+        run: |
+          v=$(node -p "require('./package.json').version")
+          if npm view "@microtoll/pqc-scan@$v" version >/dev/null 2>&1; then
+            echo "@microtoll/pqc-scan@$v is already published; nothing to do."
+          else
+            npm publish --provenance --access public
+          fi
