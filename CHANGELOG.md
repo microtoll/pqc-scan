@@ -5,6 +5,10 @@ library API may change in any minor release, and every such change is
 listed. The report's JSON schema is versioned separately (`schema` in the
 report); a change to its meaning always raises that version.
 
+## 0.1.1 — 2026-09-27
+
+Metadata for the npm page and for provenance: `repository`, `homepage`, `bugs` and `keywords` in package.json (0.1.0 was published by hand without a repository link). `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` added. Nothing in `src/` changed. First version published through the release workflow with provenance.
+
 ## 0.1.0 — 2026-09-27
 
 The first release: the publish gate opened on 2026-09-27 (the engine's

@@ -1,8 +1,28 @@
 {
   "name": "@microtoll/pqc-scan",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "An inventory of the cryptography a JavaScript or TypeScript codebase uses, and which of it a large quantum computer would break. An inventory and pointers, not a compliance certificate.",
+  "keywords": [
+    "post-quantum",
+    "pqc",
+    "cryptography",
+    "inventory",
+    "ncsc",
+    "security",
+    "static-analysis",
+    "cli",
+    "github-action",
+    "zero-dependencies"
+  ],
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/microtoll/pqc-scan.git"
+  },
+  "homepage": "https://github.com/microtoll/pqc-scan#readme",
+  "bugs": {
+    "url": "https://github.com/microtoll/pqc-scan/issues"
+  },
   "type": "module",
   "main": "./src/index.js",
   "exports": {

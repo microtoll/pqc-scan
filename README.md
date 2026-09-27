@@ -40,8 +40,8 @@ JSON file; nothing of it is built.
    ```sh
    npm install -g @microtoll/pqc-scan
    ```
-   If the package is not on the registry yet, or you would rather read the
-   code first, take it from this repository in one of two ways:
+   If you would rather read the code first, or work without the registry,
+   take it from this repository in one of two ways:
    - **Download**: on the repository page, *Code → Download ZIP*, then unzip
      it somewhere convenient, for example `C:\Tools\pqc-scan` on Windows or
      `~/tools/pqc-scan` elsewhere.
