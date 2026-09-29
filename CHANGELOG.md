@@ -27,6 +27,9 @@ item of the evidence pack decided on 2026-09-29.
   checker, `test/cyclonedx-check.mjs`; the mapping of a known set of
   algorithms; one occurrence per finding and every reference resolving; the
   same output on every machine.
+- A serial number, worked out from the rest of the bill of materials and
+  its timestamp (an RFC 9562 version 8 UUID from SHA-256): CycloneDX
+  recommends one and IBM's CBOMkit viewer refuses a file without it.
 - Still to do before release: load the output into IBM's CBOMkit viewer by
   hand (DESIGN.md §8.14, acceptance).
 

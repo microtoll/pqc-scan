@@ -6,6 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { scan, toCbom, buildCbom, CBOM_SPEC_VERSION } from '../src/index.js';
 import { ROOT, FIXTURES, FIXED_NOW, scanFixture } from './helpers.mjs';
@@ -205,12 +206,14 @@ test('TLS: a protocol asset per configuration, its version, and its groups as sh
   assert.equal(unstated.cryptoProperties.protocolProperties.cryptoRefArray, undefined);
 });
 
-test('two scans of the same tree give the same bill of materials apart from the timestamp; no absolute path; sorted', () => {
+test('two scans of the same tree give the same bill of materials apart from the timestamp and the serial number; no absolute path; sorted', () => {
   const a = buildCbom(scan(FIXTURES, { now: FIXED_NOW }));
   const b = buildCbom(scan(FIXTURES, { now: new Date('2030-01-01T00:00:00Z') }));
   assert.equal(a.metadata.timestamp, FIXED_NOW.toISOString());
   assert.notEqual(a.metadata.timestamp, b.metadata.timestamp);
+  assert.notEqual(a.serialNumber, b.serialNumber, 'each scan has its own serial number');
   a.metadata.timestamp = b.metadata.timestamp = null;
+  a.serialNumber = b.serialNumber = null;
   assert.deepEqual(a, b);
   const text = toCbom(scan(FIXTURES, { now: FIXED_NOW }));
   assert.ok(!text.includes(FIXTURES) && !text.includes(FIXTURES.replace(/\\/g, '/')), 'no absolute path');
@@ -218,4 +221,34 @@ test('two scans of the same tree give the same bill of materials apart from the 
   const names = assetsOf(a).filter((c) => c.cryptoProperties.assetType === 'algorithm').map((c) => c.name);
   assert.deepEqual(names, [...names].sort());
   assert.ok(a.metadata.properties.some((p) => p.name === `${P}:notice` && p.value === 'An inventory and pointers, not a compliance certificate.'));
+});
+
+test('the serial number: an RFC 9562 version 8 UUID worked out from the rest of the file, the same for the same report', () => {
+  const report = scan(FIXTURES, { now: FIXED_NOW });
+  const bom = buildCbom(report);
+  assert.match(bom.serialNumber, /^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.equal(buildCbom(report).serialNumber, bom.serialNumber);
+  assert.deepEqual(Object.keys(bom).slice(0, 5), ['$schema', 'bomFormat', 'specVersion', 'serialNumber', 'version']);
+  // Worked out from everything else: change any field and it changes.
+  const { serialNumber, ...rest } = bom;
+  const recomputed = createHash('sha256').update(JSON.stringify(rest)).digest().subarray(0, 16);
+  recomputed[6] = (recomputed[6] & 0x0f) | 0x80;
+  recomputed[8] = (recomputed[8] & 0x3f) | 0x80;
+  assert.equal(serialNumber.replace(/^urn:uuid:|-/g, ''), recomputed.toString('hex'));
+});
+
+// IBM's CBOMkit viewer (github.com/cbomkit/cbomkit, frontend/src/helpers/cbom.js,
+// checkCbomValidity) marks a file invalid without these, although CycloneDX
+// requires only the first two; it ignores, with a notice, every component
+// that is not a cryptographic asset.
+test('what the CBOMkit viewer from IBM requires: bomFormat, specVersion, serialNumber, version; cryptoProperties on every asset', () => {
+  for (const name of ['cli', 'libraries', 'tls', 'webcrypto', 'node-crypto']) {
+    const bom = buildCbom(scanFixture(name));
+    for (const field of ['bomFormat', 'specVersion', 'serialNumber', 'version']) assert.ok(Object.hasOwn(bom, field), `${name}: ${field}`);
+    assert.ok(Array.isArray(bom.components));
+    for (const c of bom.components) {
+      assert.ok(c.type, `${name}: a component without a type`);
+      if (c.type === 'cryptographic-asset') assert.ok(c.cryptoProperties, `${name}: ${c.name} without cryptoProperties`);
+    }
+  }
 });

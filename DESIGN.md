@@ -537,8 +537,16 @@ when asked for; the terminal default (§8.13) is unchanged.
 | `scannedAt`, `tool`, `root` | `metadata.timestamp`, `metadata.tools.components` (with the catalogue month), `metadata.component` (the scanned directory's name) |
 
 Every asset states `executionEnvironment` software-plain-ram and
-`implementationPlatform` generic, which is true of JavaScript. There is no
-`serialNumber`: it would differ between two scans of the same tree (§8.7).
+`implementationPlatform` generic, which is true of JavaScript. The
+`serialNumber` is a UUID worked out from the rest of the document, its
+timestamp included: RFC 9562's version 8 from SHA-256 (its Appendix B.2),
+not version 5, which would mean SHA-1. Each scan's file therefore has its
+own serial number, as CycloneDX recommends, and one report always gives
+one file. The first version of this section left the serial number out,
+since CycloneDX makes it optional; IBM's CBOMkit viewer refuses a file
+without it, found while preparing the acceptance check below (2026-09-29,
+the founder's choice among a serial number tied to the scan, a random one,
+and none).
 `bom-ref`s are deterministic (`pqc-scan:algorithm:…`, `:library:…`,
 `:tls:…`, `:interface:…`), suffixed only on a collision.
 
@@ -559,7 +567,9 @@ HMAC, PKCS#1 v1.5, 3DES, ECB, a bare RSA key pair; jose's purl, a scoped
 purl, the "a or b" providers, bcrypt's cost; nine TLS configurations, the
 hybrid group as a combiner, X25519 as one shared asset, Apache's absent
 version). Two scans of one tree give the same bill of materials apart from
-the timestamp; no absolute path; assets sorted. The schema copy at
+the timestamp and the serial number; the serial number is the version 8
+UUID of the rest of the document; the fields the CBOMkit viewer requires
+are present; no absolute path; assets sorted. The schema copy at
 `test/schemas/bom-1.6.schema.json` is from the specification repository at
 tag 1.6.1 (Apache-2.0) and is not part of the published package.
 

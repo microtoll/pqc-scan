@@ -227,9 +227,10 @@ in a Web Crypto call are one asset. What CycloneDX has no field for (the
 scanner's class and kind, the migration priority and its reason, literal
 parameters such as an iteration count, the notes) travels in properties
 named `microtoll:pqc-scan:*`. The bill of materials says nothing the JSON
-report does not: it is written from the report alone, carries no serial
-number (two scans of one tree give the same bill of materials apart from
-the timestamp) and keeps the sentence *an inventory and pointers, not a
+report does not: it is written from the report alone, its serial number
+is worked out from its own contents (two scans of one tree give the same
+bill of materials apart from the timestamp and the serial number), and it
+keeps the sentence *an inventory and pointers, not a
 compliance certificate* in its metadata. The mapping is in `DESIGN.md`
 §8.14, and every output is checked against the published CycloneDX schema
 in the tests.

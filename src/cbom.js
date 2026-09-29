@@ -14,6 +14,7 @@
 // scanner's class, kind, migration priority, parameters and notes) travels
 // in `properties` under the prefix `microtoll:pqc-scan:`, as the CycloneDX
 // property taxonomy allows.
+import { createHash } from 'node:crypto';
 import { HYBRID_NAMES } from './catalogue.js';
 
 export const CBOM_SPEC_VERSION = '1.6';
@@ -79,7 +80,7 @@ export function buildCbom(report) {
     dependencies.push(entry);
   }
 
-  return {
+  const bom = {
     $schema: SCHEMA_URL,
     bomFormat: 'CycloneDX',
     specVersion: CBOM_SPEC_VERSION,
@@ -109,6 +110,25 @@ export function buildCbom(report) {
     components: [...assetComponents, ...protocols, ...libraryComponents, ...interfaceComponents],
     dependencies,
   };
+  const { $schema, bomFormat, specVersion, ...rest } = bom;
+  return { $schema, bomFormat, specVersion, serialNumber: serialNumberOf(bom), ...rest };
+}
+
+/**
+ * The serial number (DESIGN.md §8.14): a UUID worked out from the rest of
+ * the bill of materials, its timestamp included, so every scan's file has
+ * its own serial number and one report always gives one file. CycloneDX
+ * makes it optional but recommended, and IBM's CBOMkit viewer refuses a
+ * file without it. The UUID is RFC 9562's version 8 from SHA-256, the
+ * name-based construction of its Appendix B.2; version 5 would mean SHA-1,
+ * which this scanner itself reports as weak.
+ */
+function serialNumberOf(bom) {
+  const b = createHash('sha256').update(JSON.stringify(bom)).digest().subarray(0, 16);
+  b[6] = (b[6] & 0x0f) | 0x80; // version 8
+  b[8] = (b[8] & 0x3f) | 0x80; // the RFC 9562 variant
+  const h = b.toString('hex');
+  return `urn:uuid:${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
 /** The JSON text of the bill of materials: two-space indentation and a final newline. */
