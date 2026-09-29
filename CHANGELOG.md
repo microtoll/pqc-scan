@@ -5,7 +5,7 @@ library API may change in any minor release, and every such change is
 listed. The report's JSON schema is versioned separately (`schema` in the
 report); a change to its meaning always raises that version.
 
-## 0.2.0 — unreleased
+## 0.2.0 — 2026-09-29
 
 The CycloneDX cryptographic bill of materials (DESIGN.md §8.14): the first
 item of the evidence pack decided on 2026-09-29.
