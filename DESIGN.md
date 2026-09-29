@@ -210,8 +210,12 @@ pqc-scan/
   src/catalogue.js         the library catalogue and the algorithm classes
   src/scan.js              walking the directory and running the detectors
   src/report.js            JSON (schema v1) and Markdown
+  src/cbom.js              the CycloneDX 1.6 bill of materials (§8.14)
+  src/mcp.js               pqc-scan mcp, the tool for coding agents (§8.15)
+  src/mcp-protocol.js      the Model Context Protocol subset, copied from @microtoll/mcp
   schema/                  the JSON schema of pqc-scan.json, version 1
   action.yml               the composite GitHub Action
+  server.json              the MCP registry listing (§8.15)
   test/                    node:test; fixtures of real code shapes, each false positive found becomes one
   README.md  DESIGN.md  CHANGELOG.md  LICENSE  SECURITY.md (pointing at the engine's)
 ```
@@ -564,3 +568,84 @@ materials that validates; loading that file into IBM's CBOMkit viewer by
 hand is still to be done before the release, and the design's claim is
 limited to schema validity until then. When NIST and CISA publish the
 minimum elements (March 2027), this section is revisited.
+
+### 8.15 The scanner as a tool for coding agents (2026-09-29)
+
+**Why.** A coding agent that writes cryptographic code should be able to
+check what it wrote, in the same session, without a person running the
+command line and pasting the report back. A finding of June 2026, cited
+by the hosted-report design, is that post-quantum code written with a
+large language model's help drifts from secure patterns; a scan the agent
+can call is a cheap check on that.
+It is decision E-07 of the hosted-report design (its own repository),
+taken as option (a): inside the scanner, not a separate package.
+
+**What.** `pqc-scan mcp` runs a Model Context Protocol (MCP) server on
+standard input and output with one tool, `pqc_scan`:
+
+| Argument | Meaning |
+| --- | --- |
+| `directory` (required) | the folder to scan: absolute, or relative to the folder the host started the server in |
+| `exclude` | as `--exclude`, a list |
+| `testFiles` | as `--test-files`, a list |
+
+The result is the JSON report, schema version 1, exactly as `--json`
+writes it except for the indentation: compact, because the report goes
+into the agent's context and indentation is about a quarter of its length
+(59 KB against 79 KB on this repository). A folder that cannot be scanned
+and an argument of the wrong shape are tool results with `isError`, which
+the host shows to the agent; an unknown tool or method is a JSON-RPC
+error. The server's instructions ask the agent to call the tool after
+changing cryptographic code and to consider the replacement named for
+anything at high or medium priority; the tool's description and the
+instructions both end with the notice.
+
+- **Reads only.** The tool writes nothing (no report file, no bill of
+  materials) and runs nothing it scans, as the command line. The report
+  goes back to the host that asked for it; the scanner still sends
+  nothing anywhere. What the host does with it is the host's: an agent's
+  context usually reaches a model provider, and the report carries source
+  lines as evidence (§8.7), lines the agent could already read.
+- **Size.** The whole report comes back. A codebase large enough to pass
+  a host's limit on a tool result is scanned a folder at a time, or with
+  `exclude`; the tool's description says so. A summary-only result was
+  not added: the design names the JSON report, and the schema is the one
+  seam (§5).
+- **The protocol** is the subset a tools-only server needs (`initialize`,
+  `ping`, `tools/list`, `tools/call`; protocol version 2025-06-18),
+  copied from `@microtoll/mcp` 0.1.2 into `src/mcp-protocol.js` rather
+  than imported, so the scanner keeps zero dependencies; its header names
+  the source and the one change (a log prefix). The library exports
+  `createMcpServer`, `mcpTools`, `MCP_INSTRUCTIONS` and
+  `MCP_PROTOCOL_VERSION`.
+- **The command.** `mcp` is a command only as the first argument and
+  with nothing after it; anything after it is a usage error (exit 2). A
+  folder named `mcp` is scanned with `pqc-scan ./mcp` or
+  `pqc-scan -- mcp`; run from a terminal, `pqc-scan mcp` says on
+  standard error that it is waiting for a host and how to scan such a
+  folder. The Action now passes its `path` last, after `--`, so no path
+  is read as the command or as an option.
+- **The registry.** `mcpName` in package.json
+  (`io.github.microtoll/pqc-scan`) and `server.json` beside it, in the
+  shape of the engine's accepted listing, with the package argument
+  `mcp` so a host starts `npx -y @microtoll/pqc-scan mcp`. The listing
+  is published after the npm release, since the registry checks the
+  published package's `mcpName`.
+
+**Tests** (`test/mcp.test.mjs`). The server over a real child process,
+fed what a host sends: the handshake (protocol version, package version,
+the notice); one tool, needing `directory`; the result valid against the
+schema and equal to a scan through the library apart from `scannedAt`;
+a relative folder, `exclude` and `testFiles` reaching the scan; six
+failures as tool results; an unknown tool, an unknown method and a line
+that is not JSON as protocol errors, with the session carrying on;
+nothing written to disk and nothing but the protocol on standard output;
+`mcp` with arguments refused, and a folder named `mcp` scanned both
+ways; `server.json` in step with package.json.
+
+**Acceptance.** Checked by hand with the MCP Inspector's command line
+(`npx @modelcontextprotocol/inspector --cli node bin/pqc-scan.mjs mcp`):
+it lists the tool and gets the report back. `server.json` validated
+against the registry's schema of 2025-12-11. Still to do after the npm
+release: the registry listing, and a first call from a coding agent in
+Claude Code (`claude mcp add pqc-scan -- npx -y @microtoll/pqc-scan mcp`).

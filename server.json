@@ -1,0 +1,30 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.microtoll/pqc-scan",
+  "title": "pqc-scan",
+  "description": "The cryptography a JavaScript or TypeScript codebase uses, and which a quantum computer would break.",
+  "repository": {
+    "url": "https://github.com/microtoll/pqc-scan",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/microtoll/pqc-scan#readme",
+  "version": "0.2.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@microtoll/pqc-scan",
+      "version": "0.2.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ]
+    }
+  ]
+}

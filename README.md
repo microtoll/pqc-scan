@@ -234,6 +234,33 @@ compliance certificate* in its metadata. The mapping is in `DESIGN.md`
 §8.14, and every output is checked against the published CycloneDX schema
 in the tests.
 
+## For coding agents
+
+`pqc-scan mcp` runs the scanner as a Model Context Protocol (MCP) server
+over standard input and output, so a coding agent in Claude Code, Cursor or
+any other MCP host can check the cryptography it has just written. Add it
+to Claude Code with:
+
+```sh
+claude mcp add pqc-scan -- npx -y @microtoll/pqc-scan mcp
+```
+
+Any other host takes the same command (`npx -y @microtoll/pqc-scan mcp`) as
+a stdio server. It offers one tool:
+
+| Tool | What it does |
+|---|---|
+| `pqc_scan({ directory, exclude?, testFiles? })` | Scans the folder (absolute, or relative to where the host started the server) and returns the JSON report, the same document as `--json` writes, without the indentation. `exclude` and `testFiles` are lists, as the options of the same names. |
+
+The tool reads files only: it writes no report file and runs nothing it
+scans, and the scanner sends nothing anywhere. The report goes back to the
+host that asked for it, and from there into the agent's context, which
+usually reaches the agent's model provider; it carries the source lines it
+found as evidence, lines the agent could already read. On a large codebase
+the whole report can pass a host's limit on a tool result, so scan the
+folder you changed, or use `exclude`. To scan a folder that is itself named
+`mcp`, run `pqc-scan ./mcp`. The details are in `DESIGN.md` §8.15.
+
 ## What it cannot see
 
 - Anything that is not JavaScript, TypeScript, a lockfile or a TLS

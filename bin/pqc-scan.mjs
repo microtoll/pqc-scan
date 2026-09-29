@@ -1,9 +1,13 @@
 #!/usr/bin/env node
-// The command line (DESIGN.md §7, §8.7, §8.13, §8.14):
+// The command line (DESIGN.md §7, §8.7, §8.13, §8.14, §8.15):
 //
 //   pqc-scan [dir] [--json <file>] [--md <file>] [--cbom <file>] [--write]
 //            [--fail-on high|medium] [--exclude <name>]… [--test-files <text>]…
+//   pqc-scan mcp
 //
+// `pqc-scan mcp`, with nothing after it, is the Model Context Protocol server
+// on standard input and output (§8.15); a folder named mcp is scanned with
+// `pqc-scan ./mcp` or `pqc-scan -- mcp`.
 // Exit codes: 0 done, 1 the --fail-on threshold was met, 2 a usage or read
 // error. Run from a terminal with no output named, it writes pqc-scan.md and
 // pqc-scan.json into the current folder and prints a short summary (§8.13).
@@ -12,9 +16,10 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { scan, toJson, toMarkdown, toCbom, TOOL_VERSION } from '../src/index.js';
+import { scan, toJson, toMarkdown, toCbom, createMcpServer, TOOL_VERSION } from '../src/index.js';
 
 const USAGE = `Usage: pqc-scan [dir] [options]
+       pqc-scan mcp
 
 An inventory of the cryptography a JavaScript or TypeScript codebase uses,
 and which of it a large quantum computer would break. An inventory and
@@ -37,6 +42,11 @@ nothing it scans and sends nothing anywhere.
   --help                 this text
   --version              the version
 
+  mcp                    run as a Model Context Protocol server on standard
+                         input and output, for a coding agent: one tool,
+                         pqc_scan, which returns the JSON report. To scan a
+                         folder named mcp, give ./mcp
+
 Run from a terminal with nothing named, the reports go to the current folder
 and a summary is printed. Piped, the Markdown report goes to standard output.
 Exit codes: 0 done, 1 the --fail-on threshold was met, 2 a usage or read error.
@@ -46,6 +56,7 @@ Exit codes: 0 done, 1 the --fail-on threshold was met, 2 a usage or read error.
 const FAIL_ON = { high: ['high'], medium: ['high', 'medium'] };
 
 function main(argv) {
+  if (argv[0] === 'mcp') return mcp(argv.slice(1));
   let parsed;
   try {
     parsed = parseArgs({
@@ -135,6 +146,17 @@ function summaryLines(report, md, json, cbom) {
   if (json !== undefined) lines.push(`  JSON:   ${resolve(json)}`);
   if (cbom !== undefined) lines.push(`  CBOM:   ${resolve(cbom)}  (CycloneDX 1.6)`);
   return `${lines.join('\n')}\n`;
+}
+
+/** `pqc-scan mcp` (DESIGN.md §8.15): standard output is the protocol from here on. */
+function mcp(rest) {
+  if (rest.length > 0) return usageError('pqc-scan mcp takes nothing after it; to scan a folder named mcp, give ./mcp');
+  if (process.stdin.isTTY) {
+    process.stderr.write('pqc-scan mcp: a Model Context Protocol server, waiting for a host on standard input (Ctrl+C to stop).\n'
+      + 'To scan a folder named mcp instead, run: pqc-scan ./mcp\n');
+  }
+  createMcpServer().listen();
+  return 0;
 }
 
 function usageError(message) {

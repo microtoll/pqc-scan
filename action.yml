@@ -90,7 +90,7 @@ runs:
           echo "::error::pqc-scan needs Node 20 or later on the runner (see actions/setup-node)."
           exit 2
         fi
-        args=("$PQC_PATH" --json "$PQC_JSON" --md "$PQC_MD" --cbom "$PQC_CBOM")
+        args=(--json "$PQC_JSON" --md "$PQC_MD" --cbom "$PQC_CBOM")
         while IFS= read -r name; do
           [ -n "$name" ] && args+=(--exclude "$name")
         done <<< "$PQC_EXCLUDE"
@@ -98,6 +98,9 @@ runs:
           [ -n "$text" ] && args+=(--test-files "$text")
         done <<< "$PQC_TEST_FILES"
         if [ -n "$PQC_FAIL_ON" ]; then args+=(--fail-on "$PQC_FAIL_ON"); fi
+        # The path goes last, after "--", so that no path is read as an
+        # option or as the mcp command (DESIGN.md §8.15).
+        args+=(-- "$PQC_PATH")
         # The threshold is applied in the last step, after the summary and
         # the upload, so a failing job still shows and keeps its report.
         set +e

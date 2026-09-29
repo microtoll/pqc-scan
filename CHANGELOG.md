@@ -30,6 +30,31 @@ item of the evidence pack decided on 2026-09-29.
 - Still to do before release: load the output into IBM's CBOMkit viewer by
   hand (DESIGN.md §8.14, acceptance).
 
+The scanner as a tool for coding agents (DESIGN.md §8.15): the second item
+of the evidence pack.
+
+- `pqc-scan mcp` runs a Model Context Protocol server on standard input and
+  output with one tool, `pqc_scan({ directory, exclude?, testFiles? })`,
+  which returns the JSON report (schema version 1, without indentation).
+  It reads files only and writes nothing. The protocol subset is copied
+  from `@microtoll/mcp` 0.1.2 (`src/mcp-protocol.js`), so the scanner keeps
+  zero dependencies. The library API gains `createMcpServer`, `mcpTools`,
+  `MCP_INSTRUCTIONS` and `MCP_PROTOCOL_VERSION`.
+- **A change to the command line:** `pqc-scan mcp` used to scan a folder
+  named `mcp`; it now starts the server. Scan such a folder with
+  `pqc-scan ./mcp` or `pqc-scan -- mcp`. `mcp` followed by anything else is
+  a usage error (exit 2).
+- The Action passes its `path` input last, after `--`, so a path named
+  `mcp`, or one beginning with a dash, is always scanned as a folder.
+- For the MCP registry: `mcpName` (`io.github.microtoll/pqc-scan`) in
+  package.json and `server.json` beside it. The listing is published after
+  the npm release.
+- Tests (`test/mcp.test.mjs`): the server over a real child process, fed
+  what a host sends; the result checked against the schema and against a
+  scan through the library; failures as tool results; protocol errors;
+  nothing written to disk; the command's arguments; `server.json` in step
+  with package.json.
+
 ## 0.1.1 — 2026-09-27
 
 Metadata for the npm page and for provenance: `repository`, `homepage`, `bugs` and `keywords` in package.json (0.1.0 was published by hand without a repository link). `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` added. Nothing in `src/` changed. First version published through the release workflow with provenance.
