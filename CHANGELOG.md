@@ -52,8 +52,8 @@ of the evidence pack.
 - The Action passes its `path` input last, after `--`, so a path named
   `mcp`, or one beginning with a dash, is always scanned as a folder.
 - For the MCP registry: `mcpName` (`io.github.microtoll/pqc-scan`) in
-  package.json and `server.json` beside it. The listing is published after
-  the npm release.
+  package.json and `server.json` beside it. Listed in the MCP registry on
+  2026-09-29, after the npm release.
 - Tests (`test/mcp.test.mjs`): the server over a real child process, fed
   what a host sends; the result checked against the schema and against a
   scan through the library; failures as tool results; protocol errors;

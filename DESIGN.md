@@ -644,7 +644,14 @@ instructions both end with the notice.
   shape of the engine's accepted listing, with the package argument
   `mcp` so a host starts `npx -y @microtoll/pqc-scan mcp`. The listing
   is published after the npm release, since the registry checks the
-  published package's `mcpName`.
+  published package's `mcpName`. The registry grants an organisation's
+  names only to its owners, and only when the GitHub token it is given
+  carries the `read:org` scope; without it the registry silently grants
+  the personal names alone and refuses the organisation's with a
+  misleading hint about public membership. The interactive
+  `mcp-publisher login github` (1.8.1) gave such a token on 2026-09-29;
+  `mcp-publisher login github --token` with a token that has `read:org`
+  worked.
 
 **Tests** (`test/mcp.test.mjs`). The server over a real child process,
 fed what a host sends: the handshake (protocol version, package version,
@@ -660,6 +667,8 @@ ways; `server.json` in step with package.json.
 **Acceptance.** Checked by hand with the MCP Inspector's command line
 (`npx @modelcontextprotocol/inspector --cli node bin/pqc-scan.mjs mcp`):
 it lists the tool and gets the report back. `server.json` validated
-against the registry's schema of 2025-12-11. Still to do after the npm
-release: the registry listing, and a first call from a coding agent in
+against the registry's schema of 2025-12-11. Published on npm as 0.2.0
+and listed in the MCP registry as `io.github.microtoll/pqc-scan` on
+2026-09-29; the published package, started with `npx`, answered a host's
+handshake and a scan. Still to do: a first call from a coding agent in
 Claude Code (`claude mcp add pqc-scan -- npx -y @microtoll/pqc-scan mcp`).
