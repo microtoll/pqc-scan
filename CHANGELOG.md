@@ -26,6 +26,8 @@ understate.
   3 MB file that is now read.
 - Wording: the documents no longer name the viewer used for the bill of
   materials' acceptance check; they describe it as an open-source viewer.
+- Published on npm (signed tag, approved by the founder) and listed in the
+  MCP registry on 2026-09-29.
 
 ## 0.3.0 — 2026-09-29
 
