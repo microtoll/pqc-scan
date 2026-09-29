@@ -1,6 +1,7 @@
 // `pqc-scan mcp` (DESIGN.md §8.15): the Model Context Protocol server over a
-// real child process, fed what a host sends; the one tool's result checked
-// against the schema and against a scan through the library; its errors as
+// real child process, fed what a host sends; the one tool's full result
+// checked against the schema and against a scan through the library, and its
+// summary against the report it is cut from; its errors as
 // tool results; the command's own arguments; and the registry listing kept
 // in step with package.json.
 import { test } from 'node:test';
@@ -12,6 +13,7 @@ import { join } from 'node:path';
 import { ROOT, FIXTURES } from './helpers.mjs';
 import { check } from './schema-check.mjs';
 import { scan, createMcpServer, NOTICE, MCP_PROTOCOL_VERSION } from '../src/index.js';
+import { agentSummary, PLACES_PER_GROUP, PLACES_IN_ALL } from '../src/mcp.js';
 
 const BIN = join(ROOT, 'bin', 'pqc-scan.mjs');
 const SCHEMA = JSON.parse(readFileSync(join(ROOT, 'schema', 'pqc-scan.schema.json'), 'utf8'));
@@ -51,14 +53,15 @@ test('tools/list: one tool, pqc_scan, which needs a directory and says what it i
   assert.deepEqual(tools.map((t) => t.name), ['pqc_scan']);
   const [tool] = tools;
   assert.deepEqual(tool.inputSchema.required, ['directory']);
-  assert.deepEqual(Object.keys(tool.inputSchema.properties).sort(), ['directory', 'exclude', 'testFiles']);
+  assert.deepEqual(Object.keys(tool.inputSchema.properties).sort(), ['detail', 'directory', 'exclude', 'testFiles']);
+  assert.deepEqual(tool.inputSchema.properties.detail.enum, ['summary', 'full']);
   assert.equal(tool.inputSchema.additionalProperties, false);
   assert.ok(tool.description.includes('schema version 1') && tool.description.endsWith(NOTICE));
 });
 
-test('pqc_scan returns the JSON report: valid against the schema, and the same as a scan through the library', () => {
+test('pqc_scan with detail "full" returns the JSON report: valid against the schema, and the same as a scan through the library', () => {
   const dir = join(FIXTURES, 'cli');
-  const s = session([INITIALIZE, call(2, { directory: dir })]);
+  const s = session([INITIALIZE, call(2, { directory: dir, detail: 'full' })]);
   const { content, isError } = s.byId.get(2).result;
   assert.equal(isError, false);
   assert.equal(content.length, 1);
@@ -73,9 +76,9 @@ test('pqc_scan returns the JSON report: valid against the schema, and the same a
 test('pqc_scan: a relative directory is from the server\'s own folder; exclude and testFiles reach the scan', () => {
   const s = session([
     INITIALIZE,
-    call(2, { directory: 'cli' }),
-    call(3, { directory: 'cli', exclude: ['high'] }),
-    call(4, { directory: 'cli', testFiles: ['medium'] }),
+    call(2, { directory: 'cli', detail: 'full' }),
+    call(3, { directory: 'cli', exclude: ['high'], detail: 'full' }),
+    call(4, { directory: 'cli', testFiles: ['medium'], detail: 'full' }),
   ], FIXTURES);
   const report = (id) => JSON.parse(s.byId.get(id).result.content[0].text);
   assert.equal(report(2).root, 'cli');
@@ -95,6 +98,7 @@ test('pqc_scan\'s failures are tool results for the agent to read, not protocol 
     call(5, { directory: join(FIXTURES, 'cli', 'high', 'seal.js') }),
     call(6, { directory: FIXTURES, exclude: 'cli' }),
     call(7, { directory: FIXTURES, testFiles: [''] }),
+    call(8, { directory: FIXTURES, detail: 'brief' }),
   ]);
   const text = (id) => {
     const { result } = s.byId.get(id);
@@ -107,6 +111,50 @@ test('pqc_scan\'s failures are tool results for the agent to read, not protocol 
   assert.match(text(5), /not a directory/);
   assert.match(text(6), /^exclude: give a list of non-empty texts/);
   assert.match(text(7), /^testFiles: give a list of non-empty texts/);
+  assert.match(text(8), /^detail: give summary or full/);
+});
+
+test('pqc_scan returns a summary by default: the report\'s counts, every use accounted for, the uses to review with their places, no source lines', () => {
+  for (const name of ['cli', 'libraries', 'node-crypto']) {
+    const dir = join(FIXTURES, name);
+    const s = session([INITIALIZE, call(2, { directory: dir })]);
+    const { content, isError } = s.byId.get(2).result;
+    assert.equal(isError, false);
+    assert.ok(!content[0].text.includes('\n'), 'compact JSON, without indentation');
+    const got = JSON.parse(content[0].text);
+    const report = JSON.parse(JSON.stringify(scan(dir)));
+    assert.deepEqual(settled(got), settled(agentSummary(report)), name);
+    assert.equal(got.view, 'summary');
+    assert.deepEqual(got.summary, report.summary);
+    const uses = (groups) => groups.reduce((n, g) => n + g.uses, 0);
+    assert.equal(uses(got.toReview) + uses(got.counted), report.summary.findings, `${name}: every use in one group`);
+    const places = new Set(report.findings.filter((f) => f.priority !== null || f.dynamic || f.notes.length).map((f) => `${f.file}:${f.line}`));
+    for (const g of got.toReview) {
+      assert.ok(g.at.every((p) => places.has(p)), `${name}: ${g.algorithm} at places the report has`);
+      assert.equal(g.at.length + g.more, g.uses);
+    }
+    const ranks = got.toReview.filter((g) => !g.inTest).map((g) => ({ high: 0, medium: 1, low: 2 })[g.priority] ?? 3);
+    assert.deepEqual(ranks, [...ranks].sort((a, b) => a - b), `${name}: high first`);
+    for (const f of report.findings) assert.ok(!content[0].text.includes(JSON.stringify(f.evidence)), `${name}: no source line`);
+  }
+});
+
+test(`the summary lists at most ${PLACES_PER_GROUP} places a group and ${PLACES_IN_ALL} in all, the most urgent groups first, and counts the rest`, () => {
+  const report = JSON.parse(JSON.stringify(scan(join(FIXTURES, 'cli'))));
+  const [high] = report.findings.filter((f) => f.priority === 'high');
+  const [medium] = report.findings.filter((f) => f.priority === 'medium');
+  const many = (f, n, algorithm) => Array.from({ length: n }, (_, i) => ({ ...f, algorithm, file: `a/${algorithm}.js`, line: i + 1 }));
+  // The medium groups come first in the findings, as a file sorted early would.
+  const findings = [];
+  for (let i = 0; i < 30; i++) findings.push(...many(medium, 25, `M${i}`));
+  findings.push(...many(high, 25, 'H'));
+  const got = agentSummary({ ...report, findings });
+  assert.equal(got.toReview[0].algorithm, 'H');
+  assert.equal(got.toReview[0].at.length, PLACES_PER_GROUP);
+  assert.equal(got.toReview[0].more, 25 - PLACES_PER_GROUP);
+  assert.equal(got.toReview.reduce((n, g) => n + g.at.length, 0), PLACES_IN_ALL);
+  assert.ok(got.toReview.every((g) => g.at.length + g.more === g.uses));
+  assert.deepEqual(got.toReview.at(-1).at, [], 'the last groups keep their count and lose their places');
 });
 
 test('protocol errors: an unknown tool, an unknown method, a line that is not JSON; the session carries on', () => {

@@ -255,15 +255,23 @@ a stdio server. It offers one tool:
 
 | Tool | What it does |
 |---|---|
-| `pqc_scan({ directory, exclude?, testFiles? })` | Scans the folder (absolute, or relative to where the host started the server) and returns the JSON report, the same document as `--json` writes, without the indentation. `exclude` and `testFiles` are lists, as the options of the same names. |
+| `pqc_scan({ directory, exclude?, testFiles?, detail? })` | Scans the folder (absolute, or relative to where the host started the server) and returns a summary of the report, as compact JSON. With `detail: "full"` it returns the JSON report itself, the same document as `--json` writes, without the indentation. `exclude` and `testFiles` are lists, as the options of the same names. |
+
+The summary holds the report's counts; each use to review (one with a
+priority, one whose algorithm could not be read, or one with a note)
+grouped by algorithm and what to do about it, with its files and lines, the
+most urgent first; and every other use counted by algorithm. It is what an
+agent acts on, and a twentieth the size of the whole report on a typical
+application, whose report can pass a host's limit on a tool result (Claude
+Code's is about 25,000 tokens). For the full report of a large codebase,
+scan the folder you changed, or use `exclude`.
 
 The tool reads files only: it writes no report file and runs nothing it
-scans, and the scanner sends nothing anywhere. The report goes back to the
+scans, and the scanner sends nothing anywhere. Its result goes back to the
 host that asked for it, and from there into the agent's context, which
-usually reaches the agent's model provider; it carries the source lines it
-found as evidence, lines the agent could already read. On a large codebase
-the whole report can pass a host's limit on a tool result, so scan the
-folder you changed, or use `exclude`. To scan a folder that is itself named
+usually reaches the agent's model provider; the full report carries the
+source lines it found as evidence, lines the agent could already read; the
+summary carries files and line numbers only. To scan a folder that is itself named
 `mcp`, run `pqc-scan ./mcp`. The details are in `DESIGN.md` §8.15.
 
 ## What it cannot see

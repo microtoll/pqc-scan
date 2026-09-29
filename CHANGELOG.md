@@ -5,6 +5,23 @@ library API may change in any minor release, and every such change is
 listed. The report's JSON schema is versioned separately (`schema` in the
 report); a change to its meaning always raises that version.
 
+## Unreleased
+
+- **`pqc_scan` returns a summary by default** (DESIGN.md §8.15). On the
+  first real use from Claude Code, on a 366-file application, the whole
+  report was 274,218 characters, ten times Claude Code's limit on a tool
+  result; Claude Code saved it to a file and showed the agent an error
+  first. The summary is 12,684 characters on the same application: the
+  report's counts; each use to review (a priority, a name that could not be
+  read, or a note) grouped by algorithm and what to do about it, with its
+  files and lines, at most 20 places a group and 400 in all, the most
+  urgent first; every other use counted by algorithm; the dependencies and
+  TLS configurations without source lines. The new argument `detail: "full"`
+  returns the whole JSON report as 0.2.0 did. The report and its schema
+  (version 1) are unchanged.
+- The README and DESIGN.md add `--scope user` to `claude mcp add`: without
+  it Claude Code registers the server for one folder only.
+
 ## 0.2.0 — 2026-09-29
 
 The CycloneDX cryptographic bill of materials (DESIGN.md §8.14): the first

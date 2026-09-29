@@ -602,11 +602,13 @@ standard input and output with one tool, `pqc_scan`:
 | `directory` (required) | the folder to scan: absolute, or relative to the folder the host started the server in |
 | `exclude` | as `--exclude`, a list |
 | `testFiles` | as `--test-files`, a list |
+| `detail` | `summary` (the default) or `full` |
 
-The result is the JSON report, schema version 1, exactly as `--json`
-writes it except for the indentation: compact, because the report goes
-into the agent's context and indentation is about a quarter of its length
-(59 KB against 79 KB on this repository). A folder that cannot be scanned
+With `detail: "full"` the result is the JSON report, schema version 1,
+exactly as `--json` writes it except for the indentation: compact, because
+the report goes into the agent's context and indentation is about a quarter
+of its length (59 KB against 79 KB on this repository). By default it is a
+summary of that report (below, **Size**), compact in the same way. A folder that cannot be scanned
 and an argument of the wrong shape are tool results with `isError`, which
 the host shows to the agent; an unknown tool or method is a JSON-RPC
 error. The server's instructions ask the agent to call the tool after
@@ -620,11 +622,30 @@ instructions both end with the notice.
   nothing anywhere. What the host does with it is the host's: an agent's
   context usually reaches a model provider, and the report carries source
   lines as evidence (§8.7), lines the agent could already read.
-- **Size.** The whole report comes back. A codebase large enough to pass
-  a host's limit on a tool result is scanned a folder at a time, or with
-  `exclude`; the tool's description says so. A summary-only result was
-  not added: the design names the JSON report, and the schema is the one
-  seam (§5).
+- **Size.** The first version returned the whole report, and a summary was
+  left out because the design names the JSON report and the schema is the
+  one seam (§5). The first real call from Claude Code (the founder, on a
+  366-file application, 2026-09-29) returned 274,218 characters, ten times
+  Claude Code's limit on a tool result (25,000 tokens by default); Claude
+  Code saved it to a file and showed the agent an error before it read the
+  file in pieces. Most of it was one random-number call repeated 347 times,
+  each with every field of a finding. Since then the default is a summary,
+  `agentSummary(report)` in `src/mcp.js`, taken from the report alone so
+  it says nothing the report does not: the report's `summary`; `toReview`,
+  the findings with a priority, a dynamic name or a note, grouped by
+  algorithm, class, priority, replacement, note codes and test code, each
+  group with its count, files, reasons, notes and places (`file:line`), at
+  most 20 places a group and 400 in all, given to the groups in the order
+  listed (high, medium, low, then no priority; test code after the rest),
+  the others counted in `more`; `counted`, every other finding counted by
+  algorithm and class; the dependencies without their manifests, the TLS
+  configurations without their source line, and `skipped`. It carries
+  `view: "summary"`, and no source lines. On that application it is 12,684
+  characters; on this repository 24,522 against 59,843. The schema is
+  unchanged: the summary is a view for an agent, and `detail: "full"`
+  returns the seam's document. Grouping, not a cap on findings, is what
+  shrinks it; the caps on places only bound a codebase with hundreds of
+  groups to review.
 - **The protocol** is the subset a tools-only server needs (`initialize`,
   `ping`, `tools/list`, `tools/call`; protocol version 2025-06-18),
   copied from `@microtoll/mcp` 0.1.2 into `src/mcp-protocol.js` rather
@@ -656,9 +677,13 @@ instructions both end with the notice.
 **Tests** (`test/mcp.test.mjs`). The server over a real child process,
 fed what a host sends: the handshake (protocol version, package version,
 the notice); one tool, needing `directory`; the result valid against the
-schema and equal to a scan through the library apart from `scannedAt`;
-a relative folder, `exclude` and `testFiles` reaching the scan; six
-failures as tool results; an unknown tool, an unknown method and a line
+schema and equal to a scan through the library apart from `scannedAt`,
+with `detail: "full"`; by default the summary of that scan, with every
+finding in one group, every place one the report has, high before medium,
+and no source line; the caps on places, given to the most urgent group
+first when it comes last in the findings;
+a relative folder, `exclude` and `testFiles` reaching the scan; seven
+failures as tool results, an unknown `detail` among them; an unknown tool, an unknown method and a line
 that is not JSON as protocol errors, with the session carrying on;
 nothing written to disk and nothing but the protocol on standard output;
 `mcp` with arguments refused, and a folder named `mcp` scanned both
@@ -670,7 +695,13 @@ it lists the tool and gets the report back. `server.json` validated
 against the registry's schema of 2025-12-11. Published on npm as 0.2.0
 and listed in the MCP registry as `io.github.microtoll/pqc-scan` on
 2026-09-29; the published package, started with `npx`, answered a host's
-handshake and a scan. Still to do: a first call from a coding agent in
-Claude Code (`claude mcp add pqc-scan --scope user -- npx -y
-@microtoll/pqc-scan mcp`; without `--scope user` the server is registered
-for the one folder the command ran in, and other projects never see it).
+handshake and a scan. The first call from a coding agent in Claude Code
+was made by the founder on 2026-09-29, after registering the server with
+`claude mcp add pqc-scan --scope user -- npx -y @microtoll/pqc-scan mcp`.
+Without `--scope user` the server is registered for the one folder the
+command ran in, and other projects never see it; the first registration
+was made that way, and the README now names the option. The call, on a
+366-file application, asked permission, scanned and gave the right answer,
+but through Claude Code's fallback for a result over its limit; the
+summary (**Size**) followed from it. The summary's own first call from
+Claude Code is still to do, after the next release.
