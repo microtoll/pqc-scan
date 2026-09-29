@@ -110,6 +110,21 @@ test('node:crypto: default, destructured, renamed, required inline, dynamic and 
   for (const f of r.findings) assert.equal(f.interface, 'node:crypto');
 });
 
+test('bundled code: esbuild\'s __require helper and its minified one-letter form load node:crypto as require does (§8.16)', () => {
+  const r = scanFixture('bundled');
+  assert.deepEqual(lines(r, 'esbuild.mjs'), [
+    'esbuild.mjs:13 AES-256-GCM [createDecipheriv]', // crypto3 = __require("crypto")
+    'esbuild.mjs:19 SHA-256 [createHash]',           // { createHash } = __require("node:crypto")
+  ]);
+  assert.deepEqual(lines(r, 'minified.js'), [
+    'minified.js:2 RSASSA-PKCS1-v1_5 [createSign] medium', // Q = P("crypto"), P defined as the helper
+    'minified.js:2 SHA-1 [createHash]',                    // P("node:crypto").createHash, inline
+  ]);
+  // A plain `typeof require` check, another loader called with "crypto",
+  // and a helper that tests for require but hands back something else.
+  assert.deepEqual(lines(r, 'not-a-require.js'), []);
+});
+
 test('traps: mentions in comments, strings, templates and regular expressions; look-alike names (§3.1, §8.2, §8.3)', () => {
   const r = scanFixture('traps');
   assert.deepEqual(lines(r, 'comments-and-strings.js'), []);

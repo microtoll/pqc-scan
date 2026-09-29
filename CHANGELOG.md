@@ -5,6 +5,26 @@ library API may change in any minor release, and every such change is
 listed. The report's JSON schema is versioned separately (`schema` in the
 report); a change to its meaning always raises that version.
 
+## 0.3.1 — unreleased
+
+Two places where the scanner read less than it should, found on
+2026-09-29 by running it over published MCP server packages, which are
+often shipped as one bundled file (DESIGN.md §8.16). Both were missed uses,
+not false alarms: reports from earlier versions of bundled code may
+understate.
+
+- **Bundled code:** `node:crypto` loaded through the helper a bundler
+  (esbuild) writes, `__require("crypto")`, or through its minified form, a
+  short name defined as that helper (`P("crypto")`), is now read as
+  `require` is. Before, every use loaded that way was missed.
+- **Large files:** files up to 16 MB are read; the limit was 2 MB, which
+  skipped the main file of many bundled packages. A 9.7 MB bundle takes
+  about two seconds and 560 MB of memory. A file over 16 MB is still
+  skipped and listed.
+- Tests: three new fixtures under `test/fixtures/bundled/` (the helper as
+  written, as minified, and look-alikes that must not count), and a
+  3 MB file that is now read.
+
 ## 0.3.0 — 2026-09-29
 
 - **`pqc_scan` returns a summary by default** (DESIGN.md §8.15). On the

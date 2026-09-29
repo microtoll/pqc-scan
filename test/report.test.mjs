@@ -105,9 +105,11 @@ test('test code is scanned and marked, not hidden; node_modules and .git are nev
   }
 });
 
-test('files over 2 MB, binary files and symbolic links are skipped and listed (§8.7)', (t) => {
+test('files over 16 MB, binary files and symbolic links are skipped and listed (§8.7, §8.16)', (t) => {
   const dir = tree({
-    'big.js': `// ${'x'.repeat(2 * 1024 * 1024)}\n`,
+    'big.js': `// ${'x'.repeat(16 * 1024 * 1024)}\n`,
+    // Over the old limit of 2 MB, under the new one: read (§8.16).
+    'bundle.js': `// ${'x'.repeat(3 * 1024 * 1024)}\ncrypto.subtle.digest('SHA-384', d);\n`,
     'blob.js': 'crypto.subtle.digest("SHA-1", d)\u0000\u0001',
     'ok.js': "crypto.subtle.digest('SHA-256', d);\n",
     'outside/secret.js': "crypto.subtle.digest('MD5', d);\n",
@@ -118,13 +120,13 @@ test('files over 2 MB, binary files and symbolic links are skipped and listed (�
     try { symlinkSync(join(dir, 'outside'), join(dir, 'link'), process.platform === 'win32' ? 'junction' : 'dir'); } catch { linked = false; }
     const r = scan(dir, { now: FIXED_NOW, exclude: ['outside'] });
     const expected = [
-      { path: 'big.js', reason: 'larger than 2 MB' },
+      { path: 'big.js', reason: 'larger than 16 MB' },
       { path: 'blob.js', reason: 'binary' },
     ];
     if (linked) expected.push({ path: 'link', reason: 'symbolic link, not followed' });
     else t.diagnostic('could not make a symbolic link here; that case was not checked');
     assert.deepEqual(r.skipped, expected);
-    assert.deepEqual(lines(r), ['ok.js:1 SHA-256 [digest]']);
+    assert.deepEqual(lines(r), ['bundle.js:2 SHA-384 [digest]', 'ok.js:1 SHA-256 [digest]']);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

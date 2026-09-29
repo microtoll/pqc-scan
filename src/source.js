@@ -66,6 +66,7 @@ export class SourceFile {
     this._declarations = null;
     this._imports = null;
     this._calls = null;
+    this._requireNames = null;
   }
 
   // -------------------------------------------------------------------------
@@ -377,6 +378,42 @@ export class SourceFile {
   // Imports and requires
 
   /**
+   * The names that load a module as `require` does (DESIGN.md §8.16):
+   * `require`; `__require`, the helper a bundler (esbuild) writes into
+   * code it has bundled; and any other name defined as that helper, as it
+   * is once minified: `var P=(e=>typeof require<"u"?require:…)(…)`. The
+   * helper is known by what it holds, `typeof require` then `?` then
+   * `require`, within its first few tokens, whatever it is called.
+   * @returns {Set<string>}
+   */
+  get requireNames() {
+    if (this._requireNames) return this._requireNames;
+    const names = new Set(['require', '__require']);
+    const toks = this.tokens;
+    for (let i = 0; i < toks.length; i++) {
+      if (!this.isIdent(i, 'typeof') || !this.isIdent(i + 1, 'require')) continue;
+      // `typeof require … ? require` a few tokens on: the helper's body.
+      let hands = false;
+      for (let j = i + 2; j < Math.min(toks.length, i + 8); j++) {
+        if (this.isPunct(j, '?') && this.isIdent(j + 1, 'require')) { hands = true; break; }
+      }
+      if (!hands) continue;
+      // `var|let|const NAME = (` a few tokens back, with nothing but
+      // parentheses, one parameter and an arrow between.
+      for (let b = i - 1; b >= Math.max(1, i - 8); b--) {
+        if (this.isPunct(b, '=') && this.isIdent(b - 1) && ['var', 'let', 'const', ','].some((k) => this.isIdent(b - 2, k) || this.isPunct(b - 2, k))) {
+          names.add(String(toks[b - 1].value));
+          break;
+        }
+        const t = toks[b];
+        if (!(t.type === 'punct' && ['(', ')', '=>'].includes(String(t.value))) && t.type !== 'ident') break;
+      }
+    }
+    this._requireNames = names;
+    return names;
+  }
+
+  /**
    * @returns {{ sites: {module: string, line: number, index: number}[],
    *   bindings: Map<string, {module: string, path: string[], line: number}> }}
    *   `path` is the member path from the module object: a default or
@@ -449,8 +486,9 @@ export class SourceFile {
       }
 
       // require('m') and import('m'), with a string literal only: a module
-      // name held in a variable is not followed (DESIGN.md §3.2).
-      if ((t.value === 'require' || t.value === 'import') && this.isPunct(i + 1, '(')
+      // name held in a variable is not followed (DESIGN.md §3.2). A
+      // bundler's require helper counts as require (§8.16).
+      if ((this.requireNames.has(String(t.value)) || t.value === 'import') && this.isPunct(i + 1, '(')
         && toks[i + 2]?.type === 'string' && this.isPunct(i + 3, ')')) {
         const module = String(toks[i + 2].value);
         sites.push({ module: normaliseModule(module), line: t.line, index: i });
@@ -526,7 +564,7 @@ export class SourceFile {
         if (before && before.type === 'ident') { chain.unshift(String(before.value)); start = k - 1; k -= 2; continue; }
         if (before && before.type === 'punct' && before.value === ')') {
           const open = findOpener(this.match, k - 1);
-          if (open > 0 && (this.isIdent(open - 1, 'require') || this.isIdent(open - 1, 'import'))
+          if (open > 0 && (this.requireNames.has(String(toks[open - 1]?.type === 'ident' ? toks[open - 1].value : '')) || this.isIdent(open - 1, 'import'))
             && toks[open + 1]?.type === 'string' && open + 2 === k - 1) {
             rootModule = normaliseModule(toks[open + 1].value);
             start = open - 1;

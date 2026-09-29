@@ -8,13 +8,13 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/microtoll/pqc-scan#readme",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@microtoll/pqc-scan",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

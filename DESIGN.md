@@ -347,7 +347,7 @@ fields are written).
   appear in the report (README, "what it cannot see").
 - `node_modules` and `.git` are never walked; `--exclude` adds names.
   Symbolic links are not followed (a link could lead out of the tree); files
-  over 2 MB are skipped, and so are binary files (a NUL in the first 8,000
+  over 16 MB (2 MB until 0.3.1, §8.16) are skipped, and so are binary files (a NUL in the first 8,000
   bytes, git's own rule; a NUL anywhere skipped a real source file with a
   raw control character in a regular expression); all are listed in
   `skipped[]`.
@@ -707,3 +707,41 @@ summary (**Size**) followed from it, released as 0.3.0 on npm and in the
 registry the same evening; `npx -y @microtoll/pqc-scan mcp` then started
 0.3.0 with the `detail` argument. The summary's own first call from
 Claude Code is still to do.
+
+### 8.16 Bundled code (2026-09-29)
+
+**Why.** Many packages are published as one bundled file: a bundler joins
+the package's own code and its dependencies into a single, often minified,
+file of several megabytes. Scanning published MCP server packages on
+2026-09-29 showed two ways the scanner read too little of such files, both
+missed uses rather than false alarms.
+
+**What.**
+
+- **The bundler's require helper.** esbuild, bundling CommonJS code into an
+  ES module, writes a helper, `__require`, and loads modules through it:
+  `var c = __require("crypto")`. Minified, the helper gets a short name,
+  `var P=(e=>typeof require<"u"?require:…)(…)`, and `P("crypto")` loads
+  the module. The scanner now treats `__require`, and any name defined as
+  that helper, exactly as `require` (`SourceFile.requireNames`). The
+  helper is known by what it holds, `typeof require` and then, a few
+  tokens on, `?` and `require`, directly after `var`, `let` or
+  `const` and the name; a plain `typeof require` check, a helper that
+  hands back something else and any other loader called with "crypto" do
+  not count (fixture `not-a-require.js`).
+- **The file-size limit** is 16 MB, up from 2 MB (§8.7). The largest bundle
+  seen, 9.7 MB, took about two seconds and 560 MB of memory to read; 16 MB
+  leaves room without asking more memory than a build machine has. A file
+  over the limit is still skipped and listed.
+
+**What it still cannot do.** A bundle holds the package's own code and its
+dependencies' together; the report cannot tell them apart, and says only
+where in the bundled file each use is. A package that is a thin wrapper,
+its real code in a dependency, still shows only the wrapper: the scanner
+does not read `node_modules` (§3.2).
+
+**Tests.** `test/fixtures/bundled/`: the helper as esbuild writes it,
+with a namespace and a destructured load; the minified one-line form, with
+a stored and an inline load; the look-alikes. Before the change the scanner
+found nothing in the first two; after it, all four uses. The size test
+reads a 3 MB file and skips a 16 MB one.

@@ -1,0 +1,2 @@
+// The same helper once minified: esbuild gives it a one-letter name (DESIGN.md §8.16).
+var P=(e=>typeof require<"u"?require:typeof Proxy<"u"?new Proxy(e,{get:(t,r)=>(typeof require<"u"?require:t)[r]}):e)(function(e){if(typeof require<"u")return require.apply(this,arguments);throw Error('Dynamic require of "'+e+'" is not supported')});var Q=P("crypto");function s(k,d){return Q.createSign("RSA-SHA256").update(d).sign(k)}var h=P("node:crypto").createHash("sha1").update("x").digest("hex");export{s,h};
