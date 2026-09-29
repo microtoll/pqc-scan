@@ -5,7 +5,7 @@ library API may change in any minor release, and every such change is
 listed. The report's JSON schema is versioned separately (`schema` in the
 report); a change to its meaning always raises that version.
 
-## Unreleased
+## 0.3.0 — 2026-09-29
 
 - **`pqc_scan` returns a summary by default** (DESIGN.md §8.15). On the
   first real use from Claude Code, on a 366-file application, the whole
