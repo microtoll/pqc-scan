@@ -240,11 +240,15 @@ in the tests.
 `pqc-scan mcp` runs the scanner as a Model Context Protocol (MCP) server
 over standard input and output, so a coding agent in Claude Code, Cursor or
 any other MCP host can check the cryptography it has just written. Add it
-to Claude Code with:
+to Claude Code, for every project, with:
 
 ```sh
-claude mcp add pqc-scan -- npx -y @microtoll/pqc-scan mcp
+claude mcp add pqc-scan --scope user -- npx -y @microtoll/pqc-scan mcp
 ```
+
+Without `--scope user`, Claude Code registers the server for the folder the
+command was run in only. New conversations pick it up; one already open
+does not.
 
 Any other host takes the same command (`npx -y @microtoll/pqc-scan mcp`) as
 a stdio server. It offers one tool:

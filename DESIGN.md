@@ -671,4 +671,6 @@ against the registry's schema of 2025-12-11. Published on npm as 0.2.0
 and listed in the MCP registry as `io.github.microtoll/pqc-scan` on
 2026-09-29; the published package, started with `npx`, answered a host's
 handshake and a scan. Still to do: a first call from a coding agent in
-Claude Code (`claude mcp add pqc-scan -- npx -y @microtoll/pqc-scan mcp`).
+Claude Code (`claude mcp add pqc-scan --scope user -- npx -y
+@microtoll/pqc-scan mcp`; without `--scope user` the server is registered
+for the one folder the command ran in, and other projects never see it).
