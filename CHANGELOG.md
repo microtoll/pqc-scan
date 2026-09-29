@@ -30,8 +30,10 @@ item of the evidence pack decided on 2026-09-29.
 - A serial number, worked out from the rest of the bill of materials and
   its timestamp (an RFC 9562 version 8 UUID from SHA-256): CycloneDX
   recommends one and IBM's CBOMkit viewer refuses a file without it.
-- Still to do before release: load the output into IBM's CBOMkit viewer by
-  hand (DESIGN.md §8.14, acceptance).
+- Checked by hand in IBM's CBOMkit viewer on 2026-09-29: the engine's
+  bill of materials opens, all 76 uses of its 21 assets are read, and the
+  viewer's own post-quantum policy check finds the same classical
+  algorithms the report does (DESIGN.md §8.14, acceptance).
 
 The scanner as a tool for coding agents (DESIGN.md §8.15): the second item
 of the evidence pack.

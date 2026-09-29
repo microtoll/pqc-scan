@@ -574,10 +574,14 @@ are present; no absolute path; assets sorted. The schema copy at
 tag 1.6.1 (Apache-2.0) and is not part of the published package.
 
 **Acceptance.** Running it on the engine's own repository writes a bill of
-materials that validates; loading that file into IBM's CBOMkit viewer by
-hand is still to be done before the release, and the design's claim is
-limited to schema validity until then. When NIST and CISA publish the
-minimum elements (March 2027), this section is revisited.
+materials that validates. Loaded by hand into IBM's CBOMkit viewer
+(https://www.zurich.ibm.com/cbom/) by the founder on 2026-09-29, once the
+serial number was added: it opened without an invalid-file message and
+reported "76 cryptographic assets found", which is the file's 76
+occurrences across its 21 assets, and "Not compliant" with its policy
+"NIST Post-Quantum Cryptography", which is right: the engine still uses
+ECDH P-256, Ed25519 and X25519, as the report says. When NIST and CISA
+publish the minimum elements (March 2027), this section is revisited.
 
 ### 8.15 The scanner as a tool for coding agents (2026-09-29)
 
