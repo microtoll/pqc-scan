@@ -5,7 +5,7 @@ library API may change in any minor release, and every such change is
 listed. The report's JSON schema is versioned separately (`schema` in the
 report); a change to its meaning always raises that version.
 
-## 0.3.1 — unreleased
+## 0.3.1 — 2026-09-29
 
 Two places where the scanner read less than it should, found on
 2026-09-29 by running it over published MCP server packages, which are
@@ -24,6 +24,8 @@ understate.
 - Tests: three new fixtures under `test/fixtures/bundled/` (the helper as
   written, as minified, and look-alikes that must not count), and a
   3 MB file that is now read.
+- Wording: the documents no longer name the viewer used for the bill of
+  materials' acceptance check; they describe it as an open-source viewer.
 
 ## 0.3.0 — 2026-09-29
 
@@ -69,8 +71,9 @@ item of the evidence pack decided on 2026-09-29.
   same output on every machine.
 - A serial number, worked out from the rest of the bill of materials and
   its timestamp (an RFC 9562 version 8 UUID from SHA-256): CycloneDX
-  recommends one and IBM's CBOMkit viewer refuses a file without it.
-- Checked by hand in IBM's CBOMkit viewer on 2026-09-29: the engine's
+  recommends one and a widely used open-source viewer for these files
+  refuses a file without it.
+- Checked by hand in that viewer on 2026-09-29: the engine's
   bill of materials opens, all 76 uses of its 21 assets are read, and the
   viewer's own post-quantum policy check finds the same classical
   algorithms the report does (DESIGN.md §8.14, acceptance).

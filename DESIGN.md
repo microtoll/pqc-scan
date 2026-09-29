@@ -543,8 +543,8 @@ timestamp included: RFC 9562's version 8 from SHA-256 (its Appendix B.2),
 not version 5, which would mean SHA-1. Each scan's file therefore has its
 own serial number, as CycloneDX recommends, and one report always gives
 one file. The first version of this section left the serial number out,
-since CycloneDX makes it optional; IBM's CBOMkit viewer refuses a file
-without it, found while preparing the acceptance check below (2026-09-29,
+since CycloneDX makes it optional; a widely used open-source viewer for
+these files refuses a file without it, found while preparing the acceptance check below (2026-09-29,
 the founder's choice among a serial number tied to the scan, a random one,
 and none).
 `bom-ref`s are deterministic (`pqc-scan:algorithm:…`, `:library:…`,
@@ -568,15 +568,15 @@ purl, the "a or b" providers, bcrypt's cost; nine TLS configurations, the
 hybrid group as a combiner, X25519 as one shared asset, Apache's absent
 version). Two scans of one tree give the same bill of materials apart from
 the timestamp and the serial number; the serial number is the version 8
-UUID of the rest of the document; the fields the CBOMkit viewer requires
-are present; no absolute path; assets sorted. The schema copy at
+UUID of the rest of the document; the fields that viewer requires are
+present; no absolute path; assets sorted. The schema copy at
 `test/schemas/bom-1.6.schema.json` is from the specification repository at
 tag 1.6.1 (Apache-2.0) and is not part of the published package.
 
 **Acceptance.** Running it on the engine's own repository writes a bill of
-materials that validates. Loaded by hand into IBM's CBOMkit viewer
-(https://www.zurich.ibm.com/cbom/) by the founder on 2026-09-29, once the
-serial number was added: it opened without an invalid-file message and
+materials that validates. Loaded by hand into an open-source viewer for
+these files by the founder on 2026-09-29, once the serial number was
+added: it opened without an invalid-file message and
 reported "76 cryptographic assets found", which is the file's 76
 occurrences across its 21 assets, and "Not compliant" with its policy
 "NIST Post-Quantum Cryptography", which is right: the engine still uses

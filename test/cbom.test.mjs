@@ -237,11 +237,11 @@ test('the serial number: an RFC 9562 version 8 UUID worked out from the rest of 
   assert.equal(serialNumber.replace(/^urn:uuid:|-/g, ''), recomputed.toString('hex'));
 });
 
-// IBM's CBOMkit viewer (github.com/cbomkit/cbomkit, frontend/src/helpers/cbom.js,
-// checkCbomValidity) marks a file invalid without these, although CycloneDX
+// A widely used open-source viewer for these files (its checkCbomValidity)
+// marks a file invalid without these, although CycloneDX
 // requires only the first two; it ignores, with a notice, every component
 // that is not a cryptographic asset.
-test('what the CBOMkit viewer from IBM requires: bomFormat, specVersion, serialNumber, version; cryptoProperties on every asset', () => {
+test('what a widely used viewer requires: bomFormat, specVersion, serialNumber, version; cryptoProperties on every asset', () => {
   for (const name of ['cli', 'libraries', 'tls', 'webcrypto', 'node-crypto']) {
     const bom = buildCbom(scanFixture(name));
     for (const field of ['bomFormat', 'specVersion', 'serialNumber', 'version']) assert.ok(Object.hasOwn(bom, field), `${name}: ${field}`);

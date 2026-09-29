@@ -118,8 +118,8 @@ export function buildCbom(report) {
  * The serial number (DESIGN.md §8.14): a UUID worked out from the rest of
  * the bill of materials, its timestamp included, so every scan's file has
  * its own serial number and one report always gives one file. CycloneDX
- * makes it optional but recommended, and IBM's CBOMkit viewer refuses a
- * file without it. The UUID is RFC 9562's version 8 from SHA-256, the
+ * makes it optional but recommended, and a widely used open-source viewer
+ * for these files refuses a file without it. The UUID is RFC 9562's version 8 from SHA-256, the
  * name-based construction of its Appendix B.2; version 5 would mean SHA-1,
  * which this scanner itself reports as weak.
  */

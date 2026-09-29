@@ -208,7 +208,7 @@ it. A person should review each High.
   see.
 - `--cbom <file>`: the same inventory as a **cryptographic bill of
   materials** in the CycloneDX 1.6 format, the shape a central inventory,
-  a supplier questionnaire or IBM's CBOMkit viewer expects.
+  a supplier questionnaire or a viewer for these files expects.
 
 ## The cryptographic bill of materials
 
