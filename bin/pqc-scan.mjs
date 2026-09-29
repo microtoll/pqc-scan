@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// The command line (DESIGN.md §7, §8.7, §8.13):
+// The command line (DESIGN.md §7, §8.7, §8.13, §8.14):
 //
-//   pqc-scan [dir] [--json <file>] [--md <file>] [--write] [--fail-on high|medium]
-//            [--exclude <name>]… [--test-files <text>]…
+//   pqc-scan [dir] [--json <file>] [--md <file>] [--cbom <file>] [--write]
+//            [--fail-on high|medium] [--exclude <name>]… [--test-files <text>]…
 //
 // Exit codes: 0 done, 1 the --fail-on threshold was met, 2 a usage or read
 // error. Run from a terminal with no output named, it writes pqc-scan.md and
@@ -12,7 +12,7 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { scan, toJson, toMarkdown, TOOL_VERSION } from '../src/index.js';
+import { scan, toJson, toMarkdown, toCbom, TOOL_VERSION } from '../src/index.js';
 
 const USAGE = `Usage: pqc-scan [dir] [options]
 
@@ -26,6 +26,7 @@ nothing it scans and sends nothing anywhere.
                          folder (what a run from a terminal does by default)
   --md <file>            write the human report to this file instead
   --json <file>          write the machine-readable report (schema version 1)
+  --cbom <file>          write a CycloneDX 1.6 cryptographic bill of materials
   --fail-on <priority>   exit 1 if anything is at this priority or above:
                          high, or medium (High and Medium)
   --exclude <name>       a folder or file name, or a path from dir, to skip
@@ -53,6 +54,7 @@ function main(argv) {
       options: {
         json: { type: 'string' },
         md: { type: 'string' },
+        cbom: { type: 'string' },
         write: { type: 'boolean' },
         'fail-on': { type: 'string' },
         exclude: { type: 'string', multiple: true },
@@ -70,7 +72,7 @@ function main(argv) {
   if (positionals.length > 1) return usageError('give one folder to scan');
   const failOn = values['fail-on'];
   if (failOn !== undefined && !FAIL_ON[failOn]) return usageError(`--fail-on takes high or medium, not "${failOn}"`);
-  for (const flag of ['json', 'md']) {
+  for (const flag of ['json', 'md', 'cbom']) {
     if (values[flag] === '') return usageError(`--${flag} needs a file name`);
   }
   if ((values['test-files'] ?? []).some((t) => t === '')) return usageError('--test-files needs some text');
@@ -91,22 +93,24 @@ function main(argv) {
   const markdown = toMarkdown(report);
   let json = values.json;
   let md = values.md;
-  const nothingNamed = json === undefined && md === undefined;
+  const cbom = values.cbom; // only ever written when asked for (§8.14)
+  const nothingNamed = json === undefined && md === undefined && cbom === undefined;
   if (nothingNamed && (values.write || process.stdout.isTTY)) {
     json = 'pqc-scan.json';
     md = 'pqc-scan.md';
   }
-  if (json === undefined && md === undefined) {
+  if (json === undefined && md === undefined && cbom === undefined) {
     process.stdout.write(markdown);
   } else {
     try {
       if (json !== undefined) writeFileSync(json, toJson(report));
       if (md !== undefined) writeFileSync(md, markdown);
+      if (cbom !== undefined) writeFileSync(cbom, toCbom(report));
     } catch (err) {
       process.stderr.write(`pqc-scan: cannot write the report: ${err.message}\n`);
       return 2;
     }
-    process.stdout.write(summaryLines(report, md, json));
+    process.stdout.write(summaryLines(report, md, json, cbom));
   }
 
   if (failOn) {
@@ -120,7 +124,7 @@ function main(argv) {
 }
 
 /** What a person sees after the reports are written: the verdict, the counts, and where to look. */
-function summaryLines(report, md, json) {
+function summaryLines(report, md, json, cbom) {
   const s = report.summary;
   const p = s.byPriority;
   const lines = [
@@ -129,6 +133,7 @@ function summaryLines(report, md, json) {
   ];
   if (md !== undefined) lines.push(`  Report: ${resolve(md)}  (open it; read sections 1 and 3 first)`);
   if (json !== undefined) lines.push(`  JSON:   ${resolve(json)}`);
+  if (cbom !== undefined) lines.push(`  CBOM:   ${resolve(cbom)}  (CycloneDX 1.6)`);
   return `${lines.join('\n')}\n`;
 }
 

@@ -124,14 +124,16 @@ The full set of options:
 | `--write` | Write `pqc-scan.md` and `pqc-scan.json` into the current folder: what a run from a terminal does by default. |
 | `--md <file>` | Write the human report to this file instead. |
 | `--json <file>` | Write the machine-readable report (schema version 1) to this file. |
+| `--cbom <file>` | Write a CycloneDX 1.6 cryptographic bill of materials (CBOM) to this file. |
 | `--test-files <text>` | Treat a file whose path contains this text as test code. Repeatable. |
 | `--fail-on high` | Exit 1 if anything is High. |
 | `--fail-on medium` | Exit 1 if anything is High or Medium. |
 | `--exclude <name>` | Skip a directory or file name, or a path from `dir`. Repeatable. `node_modules` and `.git` are never read. |
 
-In a script or a pipe, with neither `--json` nor `--md`, the Markdown goes to
-standard output and nothing is written to disk; at a terminal the two files
-are written instead. Exit codes: **0** done, **1** the `--fail-on`
+In a script or a pipe, with none of `--json`, `--md` or `--cbom`, the
+Markdown goes to standard output and nothing is written to disk; at a
+terminal `pqc-scan.md` and `pqc-scan.json` are written instead (the bill of
+materials only when asked for). Exit codes: **0** done, **1** the `--fail-on`
 threshold was met, **2** a usage or read error. The threshold counts
 everything in the report, test code included; use `--exclude` to leave a
 directory out.
@@ -149,10 +151,11 @@ steps:
 ```
 
 The action runs the scanner on the workspace, adds the Markdown report to
-the job summary, uploads both reports as the `pqc-scan` artefact, and then,
-if `fail-on` is set and met, fails the job. Its inputs: `path`, `fail-on`,
-`exclude` (one name per line), `json`, `md`, `job-summary`, `upload`,
-`artifact-name`. Its outputs: `high`, `medium`, `low`, `verdict`, `json`.
+the job summary, uploads the two reports and the bill of materials as the
+`pqc-scan` artefact, and then, if `fail-on` is set and met, fails the job.
+Its inputs: `path`, `fail-on`, `exclude` (one name per line), `json`, `md`,
+`cbom`, `job-summary`, `upload`, `artifact-name`. Its outputs: `high`,
+`medium`, `low`, `verdict`, `json`, `cbom`.
 It needs Node 20 or later on the runner; GitHub's hosted runners have it.
 
 ## What it finds
@@ -203,6 +206,33 @@ it. A person should review each High.
   SHA-1, MD5, 3DES, ECB mode, weak PBKDF2 iteration counts), dependencies,
   TLS, next steps in the NCSC's three milestones, and what the scan cannot
   see.
+- `--cbom <file>`: the same inventory as a **cryptographic bill of
+  materials** in the CycloneDX 1.6 format, the shape a central inventory,
+  a supplier questionnaire or IBM's CBOMkit viewer expects.
+
+## The cryptographic bill of materials
+
+A CycloneDX 1.6 bill of materials lists each algorithm variant the scan
+found as a `cryptographic-asset` component (`AES-256-GCM`, `ECDH P-256`,
+`ML-KEM-768`…) with CycloneDX's own fields where the name settles them
+(the primitive, the key size or curve, the mode, the functions used, the
+classical and NIST post-quantum security levels) and an occurrence for
+every use: the file, the line, the interface and call, and the source line
+with its priority. The Web Crypto API, `node:crypto` and each catalogued
+package appear as `library` components that *provide* the assets found
+through them, with a package URL (`pkg:npm/…`) and version where the
+lockfile says. Each TLS configuration is a `protocol` asset that references
+its key-exchange groups, so `X25519` in a server's group list and `X25519`
+in a Web Crypto call are one asset. What CycloneDX has no field for (the
+scanner's class and kind, the migration priority and its reason, literal
+parameters such as an iteration count, the notes) travels in properties
+named `microtoll:pqc-scan:*`. The bill of materials says nothing the JSON
+report does not: it is written from the report alone, carries no serial
+number (two scans of one tree give the same bill of materials apart from
+the timestamp) and keeps the sentence *an inventory and pointers, not a
+compliance certificate* in its metadata. The mapping is in `DESIGN.md`
+§8.14, and every output is checked against the published CycloneDX schema
+in the tests.
 
 ## What it cannot see
 

@@ -5,6 +5,31 @@ library API may change in any minor release, and every such change is
 listed. The report's JSON schema is versioned separately (`schema` in the
 report); a change to its meaning always raises that version.
 
+## 0.2.0 — unreleased
+
+The CycloneDX cryptographic bill of materials (DESIGN.md §8.14): the first
+item of the evidence pack decided on 2026-09-29.
+
+- `--cbom <file>` writes a CycloneDX 1.6 bill of materials from the same
+  scan: one `cryptographic-asset` component per algorithm variant, with an
+  occurrence (file, line, call) for every use; the interfaces and the
+  catalogued libraries as components that `provide` those assets; each TLS
+  configuration as a `protocol` asset referencing its key-exchange groups.
+  The scanner's own vocabulary (class, kind, priority, parameters, notes)
+  travels in properties named `microtoll:pqc-scan:*`. The library API gains
+  `toCbom(report)` and `buildCbom(report)`. The JSON report and its schema
+  (version 1) are unchanged; the bill of materials is written only when
+  asked for.
+- The Action writes it as well (input `cbom`, default `pqc-scan.cbom.json`,
+  uploaded with the reports; output `cbom`).
+- Tests: every fixture's bill of materials is checked against the CycloneDX
+  1.6 JSON schema (a copy at `test/schemas/`, Apache-2.0) by a second small
+  checker, `test/cyclonedx-check.mjs`; the mapping of a known set of
+  algorithms; one occurrence per finding and every reference resolving; the
+  same output on every machine.
+- Still to do before release: load the output into IBM's CBOMkit viewer by
+  hand (DESIGN.md §8.14, acceptance).
+
 ## 0.1.1 — 2026-09-27
 
 Metadata for the npm page and for provenance: `repository`, `homepage`, `bugs` and `keywords` in package.json (0.1.0 was published by hand without a repository link). `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` added. Nothing in `src/` changed. First version published through the release workflow with provenance.

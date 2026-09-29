@@ -144,3 +144,27 @@ test('the command line uses only the public API', () => {
   const imports = [...readFileSync(BIN, 'utf8').matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]);
   assert.deepEqual(imports, ['node:fs', 'node:path', 'node:util', '../src/index.js']);
 });
+
+test('--cbom writes the CycloneDX bill of materials, alone or beside the reports, and the summary names it (§8.14)', () => {
+  inTemp((dir) => {
+    const cbom = join(dir, 'pqc-scan.cbom.json');
+    const r = run([join(FIXTURES, 'cli'), '--cbom', cbom]);
+    assert.equal(r.code, 0);
+    const bom = JSON.parse(readFileSync(cbom, 'utf8'));
+    assert.equal(bom.bomFormat, 'CycloneDX');
+    assert.equal(bom.specVersion, '1.6');
+    assert.equal(bom.metadata.component.name, 'cli');
+    assert.ok(bom.components.some((c) => c.type === 'cryptographic-asset'));
+    // Alone, it is the only file written, and the Markdown does not go to standard output.
+    assert.deepEqual(readdirSync(dir), ['pqc-scan.cbom.json']);
+    assert.match(r.out, /^pqc-scan: /);
+    assert.ok(r.out.includes(`  CBOM:   ${cbom}`));
+    assert.ok(!r.out.includes('# Post-quantum'));
+    // Beside the reports.
+    const json = join(dir, 'r.json');
+    const md = join(dir, 'r.md');
+    assert.equal(run([join(FIXTURES, 'cli'), '--json', json, '--md', md, '--cbom', cbom]).code, 0);
+    assert.deepEqual(readdirSync(dir).sort(), ['pqc-scan.cbom.json', 'r.json', 'r.md']);
+    assert.equal(run([join(FIXTURES, 'cli'), '--cbom']).code, 2, '--cbom needs a file name');
+  });
+});

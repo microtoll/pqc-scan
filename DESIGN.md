@@ -476,3 +476,91 @@ Right by the design, and worth knowing:
 - Wiki.js's `https.createServer` sets no groups: "unstated", with the
   OpenSSL note (§8.6), not classical-only.
 - SHA-1 as an identifier is still listed: an inventory lists what is used.
+
+### 8.13 The terminal default (2026-09-27)
+
+Run from a terminal with no output named, the command line writes
+`pqc-scan.md` and `pqc-scan.json` into the current folder and prints a
+four-line summary (the verdict, the counts, where each file is and what to
+read first); `--write` asks for the same from a script. Piped with nothing
+named, the Markdown goes to standard output and nothing is written, so a
+script that read the Markdown from a pipe is unchanged. `--test-files
+<text>` (the Action input `test-files`) marks a file whose path contains
+the text as test code, for projects whose tests are not named `test`,
+`spec` or `__tests__`. From the founder's first run on a Windows PC, where
+the whole report scrolled past in a Command Prompt (CHANGELOG 0.1.0). This
+section was cited by the command line and the changelog before it was
+written down; it is written here for the record.
+
+### 8.14 The CycloneDX cryptographic bill of materials (2026-09-29)
+
+**Why.** A cryptographic bill of materials (CBOM) is the artefact a central
+inventory, a supplier questionnaire and the US memorandum M-26-15 (24 June
+2026) ask for, and the form NIST and CISA must define minimum elements for
+by March 2027; CycloneDX 1.6 is the published format for it. Writing one
+from the scan makes the free tool useful to the person who keeps an
+organisation's inventory, without changing the report or its schema. It is
+the first item of the evidence pack (decision E-01 of the hosted-report
+design, kept in its own repository; the scanner stays free and has no
+upload, account or endpoint, §5).
+
+**What.** `--cbom <file>` (the Action input `cbom`, default
+`pqc-scan.cbom.json`) writes a CycloneDX 1.6 JSON document from the report
+object alone (`src/cbom.js`, `toCbom` and `buildCbom` in the public API), as
+the Markdown is written from it, so the three outputs never disagree and
+the bill of materials says nothing the report does not. It is written only
+when asked for; the terminal default (§8.13) is unchanged.
+
+**The mapping.**
+
+| In the report | In the bill of materials |
+| --- | --- |
+| a finding | an `occurrence` (`location` the file, `line`, `symbol` `interface:operation`, `additionalContext` the evidence line prefixed with the use's priority and reason, and "Test code." where it is) of a `cryptographic-asset` component |
+| an algorithm variant: the normalised name with its key size, curve, hash and literal parameters | one component, however many uses and interfaces; AES-256-GCM through Web Crypto and through `node:crypto` is one asset with two providers |
+| `class`, `kind` | properties `microtoll:pqc-scan:class` and `:kind`; `algorithmProperties.primitive` from the kind: key-agree, pke, signature, kem (combiner for a hybrid), ae, block-cipher or stream-cipher, mac, hash (xof for SHAKE), kdf, drbg; `unknown` for a key pair whose use the call does not say and for a name that could not be read |
+| key size, curve, hash, parameters | `parameterSetIdentifier` (a key size, a digest length, "65", "SHA2-128s"), `curve`, `:hash`, `:parameter:<name>` |
+| the algorithm's name | `mode` (gcm, cbc, ctr, ecb, ccm, cfb, ofb; other for key wrap) and `padding` (oaep; pkcs1v15) where the name says |
+| the operation | `cryptoFunctions` (keygen, encrypt, decrypt, digest, tag, keyderive, sign, verify, encapsulate, decapsulate, generate) read from the call's name, then from the kind; `other`, or `unknown` for a dynamic name, when neither says |
+| priority, reason, replacement | the highest priority among the asset's occurrences as `:priority` and `:replacement`; each occurrence carries its own priority and reason in its context |
+| notes | `:note:<code>` |
+| what a quantum computer breaks | `nistQuantumSecurityLevel` 0 for every classical public-key algorithm and for MD4, MD5 and SHA-1; 1 to 5 where the name settles it (AES-128, -192, -256; SHA-2 and SHA-3 by digest length; ML-KEM, ML-DSA, SLH-DSA and the hybrids by parameter set; ChaCha20 and Salsa20 with a 256-bit key); otherwise omitted, never guessed |
+| classical strength | `classicalSecurityLevel` from NIST SP 800-57 Part 1 where tabulated (AES by key size, the NIST curves and Curve25519 and Curve448, RSA and DH at 1024, 2048, 3072, 7680 and 15360 bits, 3DES at 112, SHA-2 and SHA-3 collision resistance); otherwise omitted |
+| the interfaces | `library` components "Web Crypto API" and "node:crypto"; a named constant (§8.8) has no provider |
+| a catalogued dependency | a `library` component with a package URL (`pkg:npm/…`, a scope's `@` percent-encoded), the lockfile's version where it is a plain version, the catalogue's description, and `:direct`, `:dev`, `:postQuantum`, `:versions`, `:declaredIn`, `:lockfile`, `:importedAt`; a package a finding names that the manifests did not (§8.9's "library:a or b") is a component without a version, and both provide the finding |
+| the graph | `dependencies[]`: the scanned tree depends on its direct dependencies and on the interfaces; each provider `provides` the assets found through it |
+| a TLS configuration | a `protocol` asset (`protocolProperties.type` tls, `version` the highest version named, none for Apache's "all", `cryptoRefArray` the groups), with `:keyExchange`, `:protocols`, `:ciphers` (the raw string; no cipher suites are parsed), `:hybridGroups`, `:priority`; each group an algorithm asset named as the scanner names the same algorithm in code (X25519, X448, ECDH P-256, -384, -521, DH n-bit, the hybrid's own spelling), so a group and a call share one asset; an unrecognised group keeps its name |
+| `summary`, `skipped` | `metadata.properties`: the notice, the verdict, the counts, `tls.keyExchange`, one `skipped` entry per file not read |
+| `scannedAt`, `tool`, `root` | `metadata.timestamp`, `metadata.tools.components` (with the catalogue month), `metadata.component` (the scanned directory's name) |
+
+Every asset states `executionEnvironment` software-plain-ram and
+`implementationPlatform` generic, which is true of JavaScript. There is no
+`serialNumber`: it would differ between two scans of the same tree (§8.7).
+`bom-ref`s are deterministic (`pqc-scan:algorithm:…`, `:library:…`,
+`:tls:…`, `:interface:…`), suffixed only on a collision.
+
+**Tests** (`test/cbom.test.mjs`). Every fixture's bill of materials against
+the CycloneDX 1.6 JSON schema, checked by `test/cyclonedx-check.mjs`, a
+second small checker for the keywords that schema uses (the rule of
+`schema-check.mjs` holds: a keyword it does not know is an error; a
+`format` other than date-time or a reference into another schema file is
+an error too, so nothing is passed unchecked); the checker refuses a
+wrong enumeration, an unknown field, a bad timestamp and a missing
+`bomFormat`. One occurrence per finding plus one per TLS group; every
+reference in `cryptoRefArray` and in the graph resolves to a component;
+every `bom-ref` unique; every algorithm reached through an interface or a
+library is provided by it. The mapping of a known set (AES-256-GCM,
+ECDH P-256, RSA-OAEP 2048, ML-DSA-65, the hybrid, PBKDF2 with its
+iterations, SHA-1, the random source, AES-KW, AES-128-CBC, a dynamic name;
+HMAC, PKCS#1 v1.5, 3DES, ECB, a bare RSA key pair; jose's purl, a scoped
+purl, the "a or b" providers, bcrypt's cost; nine TLS configurations, the
+hybrid group as a combiner, X25519 as one shared asset, Apache's absent
+version). Two scans of one tree give the same bill of materials apart from
+the timestamp; no absolute path; assets sorted. The schema copy at
+`test/schemas/bom-1.6.schema.json` is from the specification repository at
+tag 1.6.1 (Apache-2.0) and is not part of the published package.
+
+**Acceptance.** Running it on the engine's own repository writes a bill of
+materials that validates; loading that file into IBM's CBOMkit viewer by
+hand is still to be done before the release, and the design's claim is
+limited to schema validity until then. When NIST and CISA publish the
+minimum elements (March 2027), this section is revisited.

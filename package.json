@@ -1,6 +1,6 @@
 {
   "name": "@microtoll/pqc-scan",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "An inventory of the cryptography a JavaScript or TypeScript codebase uses, and which of it a large quantum computer would break. An inventory and pointers, not a compliance certificate.",
   "keywords": [
     "post-quantum",
@@ -47,7 +47,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test test/package.test.mjs test/tokenize.test.mjs test/detect.test.mjs test/report.test.mjs test/cli.test.mjs"
+    "test": "node --test test/package.test.mjs test/tokenize.test.mjs test/detect.test.mjs test/report.test.mjs test/cbom.test.mjs test/cli.test.mjs"
   },
   "dependencies": {}
 }
