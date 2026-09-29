@@ -703,5 +703,7 @@ command ran in, and other projects never see it; the first registration
 was made that way, and the README now names the option. The call, on a
 366-file application, asked permission, scanned and gave the right answer,
 but through Claude Code's fallback for a result over its limit; the
-summary (**Size**) followed from it. The summary's own first call from
-Claude Code is still to do, after the next release.
+summary (**Size**) followed from it, released as 0.3.0 on npm and in the
+registry the same evening; `npx -y @microtoll/pqc-scan mcp` then started
+0.3.0 with the `detail` argument. The summary's own first call from
+Claude Code is still to do.

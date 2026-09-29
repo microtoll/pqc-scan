@@ -21,6 +21,9 @@ report); a change to its meaning always raises that version.
   (version 1) are unchanged.
 - The README and DESIGN.md add `--scope user` to `claude mcp add`: without
   it Claude Code registers the server for one folder only.
+- Released on npm (staged by the release workflow with provenance, approved
+  by the founder) and listed in the MCP registry as the latest version of
+  `io.github.microtoll/pqc-scan`, both on 2026-09-29.
 
 ## 0.2.0 — 2026-09-29
 
