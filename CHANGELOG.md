@@ -13,6 +13,9 @@ a few days; npm never lets a withdrawn version number be used again, so
 the code of 0.3.1 is released under this number. Nothing in the scanner,
 its report or its schema has changed.
 
+- Published on npm (signed tag, provenance) and listed in the MCP registry
+  on 2026-10-02.
+
 ## 0.3.1 — 2026-09-29
 
 Two places where the scanner read less than it should, found on
