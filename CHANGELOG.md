@@ -5,6 +5,14 @@ library API may change in any minor release, and every such change is
 listed. The report's JSON schema is versioned separately (`schema` in the
 report); a change to its meaning always raises that version.
 
+## 0.3.2 — 2026-10-02
+
+The same scanner as 0.3.1, published again. The author withdrew the
+package from npm on 30 September 2026 and made the repository private for
+a few days; npm never lets a withdrawn version number be used again, so
+the code of 0.3.1 is released under this number. Nothing in the scanner,
+its report or its schema has changed.
+
 ## 0.3.1 — 2026-09-29
 
 Two places where the scanner read less than it should, found on
