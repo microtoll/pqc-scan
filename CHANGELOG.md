@@ -24,6 +24,8 @@ Nothing in the scanner, its report or its schema has changed.
   answers when Node's permission model forbids every file write, on Node
   20 and 24; no source file importing anything that could reach the
   network.
+- Published on npm (signed tag, provenance) and listed in the MCP registry
+  on 2026-10-06.
 
 ## 0.3.2 — 2026-10-02
 
