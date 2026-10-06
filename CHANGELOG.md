@@ -5,6 +5,26 @@ library API may change in any minor release, and every such change is
 listed. The report's JSON schema is versioned separately (`schema` in the
 report); a change to its meaning always raises that version.
 
+## 0.3.3 — 2026-10-06
+
+The MCP server's tool, `pqc_scan`, now tells the host what it does through
+the Model Context Protocol specification's behaviour hints, which a host
+may use to decide when to ask the person before a call (DESIGN.md §8.17).
+Nothing in the scanner, its report or its schema has changed.
+
+- **Title:** "List the cryptography a codebase uses".
+- **Hints (`annotations`):** read-only (`readOnlyHint`), destroys nothing
+  (`destructiveHint` false), a repeat call changes nothing further
+  (`idempotentHint`), no network (`openWorldHint` false). Set from what the
+  code does: a scan lists and reads files, and writes none.
+- **`tools/list`** now sends `title` and `annotations`; before, only the
+  name, description and input schema went out. The protocol file is
+  brought in step with `@microtoll/mcp` 0.1.3, from which it is copied.
+- **Tests:** the hints as a host lists them; the tool giving the same
+  answers when Node's permission model forbids every file write, on Node
+  20 and 24; no source file importing anything that could reach the
+  network.
+
 ## 0.3.2 — 2026-10-02
 
 The same scanner as 0.3.1, published again. The author withdrew the

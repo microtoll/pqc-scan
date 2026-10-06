@@ -2,8 +2,9 @@
 // real child process, fed what a host sends; the one tool's full result
 // checked against the schema and against a scan through the library, and its
 // summary against the report it is cut from; its errors as
-// tool results; the command's own arguments; and the registry listing kept
-// in step with package.json.
+// tool results; its title and behaviour hints, and the behaviour behind them
+// (DESIGN.md §8.17); the command's own arguments; and the registry listing
+// kept in step with package.json.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -24,16 +25,24 @@ const INITIALIZE = { jsonrpc: '2.0', id: 1, method: 'initialize', params: { prot
 const INITIALIZED = { jsonrpc: '2.0', method: 'notifications/initialized' };
 const call = (id, args, name = 'pqc_scan') => ({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args } });
 
-/** Runs `pqc-scan mcp` with these lines on standard input, then closes it; the replies by id. */
-function session(messages, cwd = ROOT) {
+/** Runs `pqc-scan mcp` with these lines on standard input, then closes it; the replies by id. Node's own options, if any, go before the script. */
+function session(messages, cwd = ROOT, nodeOptions = []) {
   const input = messages.map((m) => (typeof m === 'string' ? m : JSON.stringify(m))).join('\n') + '\n';
-  const r = spawnSync(process.execPath, [BIN, 'mcp'], { cwd, input, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [...nodeOptions, BIN, 'mcp'], { cwd, input, encoding: 'utf8' });
   const replies = r.stdout.split('\n').filter(Boolean).map((line) => JSON.parse(line));
   return { code: r.status, err: r.stderr, replies, byId: new Map(replies.map((m) => [m.id, m])) };
 }
 
 /** A report with its one varying field fixed, for comparing two scans. */
 const settled = (report) => ({ ...report, scannedAt: 'fixed' });
+
+// Node's permission model with reading allowed and no --allow-fs-write: any
+// attempt to write a file throws ERR_ACCESS_DENIED, and starting a child
+// process is refused too. The switch is --permission from Node 22.13 and
+// 23.5, and --experimental-permission before, as on Node 20, which CI runs.
+const [NODE_MAJOR, NODE_MINOR] = process.versions.node.split('.').map(Number);
+const PERMISSION = NODE_MAJOR > 23 || (NODE_MAJOR === 23 && NODE_MINOR >= 5) || (NODE_MAJOR === 22 && NODE_MINOR >= 13) ? '--permission' : '--experimental-permission';
+const READ_ONLY = [PERMISSION, '--allow-fs-read=*'];
 
 test('a host\'s handshake: the protocol version, the server\'s name and package version, the notice in the instructions', () => {
   const s = session([INITIALIZE, INITIALIZED, { jsonrpc: '2.0', id: 2, method: 'ping' }]);
@@ -57,6 +66,66 @@ test('tools/list: one tool, pqc_scan, which needs a directory and says what it i
   assert.deepEqual(tool.inputSchema.properties.detail.enum, ['summary', 'full']);
   assert.equal(tool.inputSchema.additionalProperties, false);
   assert.ok(tool.description.includes('schema version 1') && tool.description.endsWith(NOTICE));
+  // The title and behaviour hints (MCP specification 2025-06-18,
+  // "ToolAnnotations"). Exactly these keys: a misspelt hint would be ignored
+  // by a host, which would then fall back on the specification's defaults.
+  const title = 'List the cryptography a codebase uses';
+  assert.equal(tool.title, title);
+  assert.deepEqual(tool.annotations, { title, readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
+  assert.ok(!('handler' in tool), 'the handler never goes out on the wire');
+});
+
+test('readOnlyHint and idempotentHint: with every file write forbidden, the tool gives the same answers, and a repeat call the same again', () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'pqc-scan-readonly-'));
+  try {
+    // The control: the same options do refuse a write, so the test is real.
+    const write = spawnSync(process.execPath, [...READ_ONLY, '-e', "require('node:fs').writeFileSync('x.txt', 'x')"], { cwd, encoding: 'utf8' });
+    assert.notEqual(write.status, 0);
+    assert.match(write.stderr, /ERR_ACCESS_DENIED/);
+    const dir = join(FIXTURES, 'cli');
+    const calls = [INITIALIZE, call(2, { directory: dir, detail: 'full' }), call(3, { directory: dir }), call(4, { directory: dir, detail: 'full' })];
+    const free = session(calls, cwd);
+    const held = session(calls, cwd, READ_ONLY);
+    const result = (s, id) => {
+      const r = s.byId.get(id).result;
+      assert.equal(r.isError, false, r.content[0].text);
+      return settled(JSON.parse(r.content[0].text));
+    };
+    assert.ok(result(held, 2).findings.length > 0, 'the fixtures hold findings');
+    for (const id of [2, 3]) assert.deepEqual(result(held, id), result(free, id));
+    assert.deepEqual(result(held, 4), result(held, 2), 'a repeat call, the same answer');
+    assert.deepEqual(readdirSync(cwd), [], 'nothing written, in either run');
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test('openWorldHint false: no source file imports anything that could reach the network or start a program', () => {
+  // A tripwire: Node's permission model cannot forbid network access, so
+  // this reads the code. Static imports only: the scanner's own rules hold
+  // `require(` and `import(` as text to look for in the code it scans.
+  const ALLOWED = new Set(['node:fs', 'node:path', 'node:crypto', 'node:util']);
+  const files = [];
+  const walk = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(join(dir, e.name));
+      else if (/\.m?js$/.test(e.name)) files.push(join(dir, e.name));
+    }
+  };
+  walk(join(ROOT, 'src'));
+  walk(join(ROOT, 'bin'));
+  for (const file of files) {
+    const text = readFileSync(file, 'utf8');
+    const specifiers = [
+      ...text.matchAll(/^\s*(?:import|export)\b[^;'"]*?\bfrom\s+['"]([^'"]+)['"]/gm),
+      ...text.matchAll(/^\s*import\s+['"]([^'"]+)['"]/gm),
+    ].map((m) => m[1]);
+    for (const s of specifiers) {
+      assert.ok(s.startsWith('.') || ALLOWED.has(s), `${file} imports ${s}: decide openWorldHint and readOnlyHint again`);
+    }
+    assert.doesNotMatch(text, /\bfetch\s*\(|\bWebSocket\b/, `${file}: fetch or a socket`);
+  }
+  assert.ok(files.length > 10, 'the source was found');
 });
 
 test('pqc_scan with detail "full" returns the JSON report: valid against the schema, and the same as a scan through the library', () => {

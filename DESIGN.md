@@ -745,3 +745,49 @@ with a namespace and a destructured load; the minified one-line form, with
 a stored and an inline load; the look-alikes. Before the change the scanner
 found nothing in the first two; after it, all four uses. The size test
 reads a 3 MB file and skips a 16 MB one.
+
+### 8.17 Behaviour hints for hosts (2026-10-06)
+
+**Why.** The Model Context Protocol specification lets each tool tell a
+host what it does, so the host can decide when to ask the person before
+a call. Without the hints, a host assumes the specification's defaults:
+the tool may change things, may destroy them, is not safe to repeat, and
+reaches the outside world. None of that is true of `pqc_scan`, and some
+directories of MCP servers turn away a server whose tools lack the hints.
+
+**What.** `pqc_scan` carries a `title`, "List the cryptography a codebase
+uses", and `annotations`:
+
+| Hint | Value | Why, from the code |
+|---|---|---|
+| `readOnlyHint` | true | `scan.js` only lists, inspects and reads files (`readdirSync`, `lstatSync`, `statSync`, `readFileSync`). The command line's report writing (§8.13) is never reached from `pqc-scan mcp`. |
+| `destructiveHint` | false | Nothing is deleted or overwritten. |
+| `idempotentHint` | true | A repeat call changes nothing further; it gives the same report but for `scannedAt`. |
+| `openWorldHint` | false | No network: the source imports `node:fs`, `node:path`, `node:crypto` (a hash for the bill of materials' serial number, §8.14) and `node:util`, and nothing else outside the package. The scan stays in the folder it is given and follows no symbolic link (§8.7). |
+
+The specification reads `destructiveHint` and `idempotentHint` only when
+`readOnlyHint` is false; all four are given anyway, so no host falls back
+on a default. The title is given twice, as `title` and as
+`annotations.title`: a host reads the first, then the second, and
+protocol version 2025-03-26 had only the second.
+
+**Checked against.** The specification's schema for protocol version
+2025-06-18, which the server speaks, and for the later 2025-11-25 and
+2026-07-28: the field names, their place (`annotations` on each tool,
+`title` beside `name`) and their meaning are the same in all three.
+
+**The protocol file.** `src/mcp-protocol.js` sent only a tool's name,
+description and input schema in `tools/list`. It is brought in step with
+`@microtoll/mcp` 0.1.3, from which it is copied (§8.15), which sends
+`title` and `annotations` too, when a tool has them.
+
+**Tests** (`test/mcp.test.mjs`). The title and the four hints, exactly,
+as a host lists them. The server run under Node's permission model with
+reading allowed and writing not (`--permission`, or
+`--experimental-permission` on Node 20): the tool's full report and its
+summary are the same as without it, a repeat call gives the same answer,
+and a one-line write under the same options is refused, which shows the
+test is real. A check over the source that every import is a file of the
+package or one of the four built-in modules above, and that nothing
+calls `fetch` or opens a WebSocket: Node's permission model cannot forbid
+network access, so this reads the code instead.

@@ -274,6 +274,12 @@ source lines it found as evidence, lines the agent could already read; the
 summary carries files and line numbers only. To scan a folder that is itself named
 `mcp`, run `pqc-scan ./mcp`. The details are in `DESIGN.md` §8.15.
 
+The tool tells the host the same through the specification's behaviour
+hints (`annotations`): read-only, destroys nothing, safe to call again, no
+network. It also has a plain title, "List the cryptography a codebase
+uses". A host may use these to decide when to ask the person before a call
+(`DESIGN.md` §8.17).
+
 ## What it cannot see
 
 - Anything that is not JavaScript, TypeScript, a lockfile or a TLS

@@ -1,6 +1,6 @@
 {
   "name": "@microtoll/pqc-scan",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "mcpName": "io.github.microtoll/pqc-scan",
   "description": "An inventory of the cryptography a JavaScript or TypeScript codebase uses, and which of it a large quantum computer would break. An inventory and pointers, not a compliance certificate.",
   "keywords": [

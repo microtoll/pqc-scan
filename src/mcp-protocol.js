@@ -1,8 +1,9 @@
 /**
- * Copied from @microtoll/mcp 0.1.2, src/protocol.js (Apache-2.0, the same
+ * Copied from @microtoll/mcp 0.1.3, src/protocol.js (Apache-2.0, the same
  * authors), rather than imported, so the scanner keeps zero dependencies
  * (DESIGN.md §8.15). One change: the prefix of the line logged when writing
- * a reply fails. D-39 below is the engine's decision.
+ * a reply fails. D-39 below is the engine's decision. 0.1.3 is the version
+ * that sends a tool's title and behaviour hints in tools/list (§8.17).
  *
  * The Model Context Protocol over standard input and output, the subset a
  * tools-only server needs (D-39): JSON-RPC 2.0 messages, one per line, on
@@ -25,7 +26,9 @@ const INVALID_PARAMS = -32602;
 
 /**
  * createServer({ name, version, instructions, tools })
- *   tools: [{ name, description, inputSchema, handler(args) -> string | { text, isError } }]
+ *   tools: [{ name, title?, description, inputSchema, annotations?, handler(args) -> string | { text, isError } }]
+ *   `title` and `annotations` (the behaviour hints) go out in tools/list
+ *   only when a tool has them.
  * Returns { handle(message) -> Promise<reply | null>, listen({ input, output, log }) }.
  * `handle` is the protocol; `listen` wires it to streams.
  */
@@ -52,7 +55,8 @@ export function createServer({ name, version, instructions = '', tools = [] }) {
       case 'ping':
         return ok(id, {});
       case 'tools/list':
-        return ok(id, { tools: tools.map(({ name: n, description, inputSchema }) => ({ name: n, description, inputSchema })) });
+        // The fields of the specification's Tool; the handler stays on this side.
+        return ok(id, { tools: tools.map(({ name: n, title, description, inputSchema, annotations }) => ({ name: n, ...(title ? { title } : {}), description, inputSchema, ...(annotations ? { annotations } : {}) })) });
       case 'tools/call': {
         const wanted = params && typeof params === 'object' ? params.name : undefined;
         const tool = byName.get(wanted);

@@ -22,10 +22,35 @@ export const MCP_INSTRUCTIONS = [
 const STRINGS = { type: 'array', items: { type: 'string', minLength: 1 } };
 const DETAILS = ['summary', 'full'];
 
+/**
+ * The tool carries a `title` and `annotations`: the behaviour hints of the
+ * Model Context Protocol specification ("ToolAnnotations", the same in
+ * versions 2025-06-18, which this server speaks, 2025-11-25 and 2026-07-28;
+ * DESIGN.md §8.17). A host may use them to decide whether to ask the person
+ * before a call. They are set from what the code does, and
+ * test/mcp.test.mjs checks that behaviour:
+ *   readOnlyHint     true: scan.js only lists, inspects and reads files;
+ *                    the command line's report writing is never reached
+ *                    from here
+ *   destructiveHint  false: it neither deletes nor overwrites anything
+ *   idempotentHint   true: a repeat call changes nothing further
+ *   openWorldHint    false: no network; it reads the folder it is given,
+ *                    and follows no symbolic link out of it
+ * The specification reads destructiveHint and idempotentHint only when
+ * readOnlyHint is false. All four are given anyway, so that a host never
+ * falls back on its defaults (may destroy, not idempotent, open world).
+ * The title is given twice on purpose: a host reads `title` first, then
+ * `annotations.title` (the specification's order); version 2025-03-26 had
+ * only the second.
+ */
+const TITLE = 'List the cryptography a codebase uses';
+
 export function mcpTools() {
   return [
     {
       name: 'pqc_scan',
+      title: TITLE,
+      annotations: { title: TITLE, readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       description: [
         'Scans a JavaScript or TypeScript codebase for the cryptography it uses (Web Crypto, node:crypto, catalogued libraries, TLS configuration, lockfiles)',
         'and returns the report as JSON, pqc-scan schema version 1: each finding with its algorithm, key size or curve, file and line, whether a large quantum computer would break it,',
